@@ -12,16 +12,24 @@ const config: Config = {
         background: "var(--background)",
         foreground: "var(--foreground)",
         primary: {
-          50: '#f0fdf4',
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
+          DEFAULT: '#FA2FB5', // Hot Pink
+          dark: '#31087B',    // Deep Purple
+          darker: '#100720',  // Near Black Purple
+          accent: '#FFC23C',  // Golden Yellow
+        },
+        // Legacy color mappings for gradual migration
+        purple: {
+          600: '#31087B',
+          700: '#31087B',
+          800: '#100720',
+        },
+        pink: {
+          500: '#FA2FB5',
+          600: '#FA2FB5',
+        },
+        yellow: {
+          400: '#FFC23C',
+          500: '#FFC23C',
         },
       },
     },

@@ -61,25 +61,25 @@ export default function BrowseQuests() {
     <div className="p-6 lg:p-8">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Browse Quests</h1>
-        <p className="text-gray-600">Find environmental challenges near you</p>
+        <h1 className="text-3xl font-bold text-white mb-2">Browse Quests</h1>
+        <p className="text-gray-300">Find environmental challenges near you</p>
       </div>
 
       {/* Category Filter */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+      <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-4 mb-6 border-2 border-[#FA2FB5]/30">
         <div className="flex items-center gap-3 mb-3">
-          <Filter className="w-5 h-5 text-gray-600" />
-          <span className="font-medium text-gray-700">Filter by Category:</span>
+          <Filter className="w-5 h-5 text-[#FFC23C]" />
+          <span className="font-medium text-white">Filter by Category:</span>
         </div>
         <div className="flex flex-wrap gap-2">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-lg font-medium capitalize transition-colors ${
+              className={`px-4 py-2 rounded-lg font-medium capitalize transition-all shadow-lg ${
                 selectedCategory === cat
-                  ? 'bg-green-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-gradient-to-r from-[#FA2FB5] to-[#FFC23C] text-white'
+                  : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-[#FA2FB5]/30'
               }`}
             >
               {cat} {cat === 'all' && `(${quests.length})`}
@@ -91,21 +91,21 @@ export default function BrowseQuests() {
       {/* Content Grid */}
       <div className="grid lg:grid-cols-2 gap-6" style={{ height: 'calc(100vh - 320px)' }}>
         {/* Quest List */}
-        <div className="bg-white rounded-lg shadow-md p-4 overflow-y-auto">
-          <h2 className="text-xl font-bold mb-4 text-gray-800">
+        <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-4 overflow-y-auto border-2 border-[#FA2FB5]/30">
+          <h2 className="text-xl font-bold mb-4 text-white">
             Available Quests ({filteredQuests.length})
           </h2>
           {loading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading quests...</p>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FA2FB5] mx-auto mb-4"></div>
+              <p className="text-gray-300">Loading quests...</p>
             </div>
           ) : filteredQuests.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-gray-400">
               <p className="mb-2">No quests found in this category</p>
               <button
                 onClick={() => setSelectedCategory('all')}
-                className="text-green-600 hover:underline"
+                className="text-[#FA2FB5] hover:text-[#FFC23C] transition-colors"
               >
                 View all quests
               </button>
@@ -116,21 +116,21 @@ export default function BrowseQuests() {
                 <div
                   key={quest._id}
                   onClick={() => handleQuestClick(quest._id)}
-                  className="border rounded-lg p-4 hover:shadow-lg hover:border-green-500 transition-all cursor-pointer"
+                  className="bg-white/5 border-2 border-[#FA2FB5]/20 rounded-lg p-4 hover:bg-white/10 hover:border-[#FA2FB5] hover:shadow-xl transition-all cursor-pointer"
                 >
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-lg text-gray-800">{quest.title}</h3>
-                    <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ml-2">
+                    <h3 className="font-bold text-lg text-white">{quest.title}</h3>
+                    <span className="bg-gradient-to-r from-[#FFC23C] to-[#FA2FB5] text-white px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ml-2">
                       +{quest.impactPoints} pts
                     </span>
                   </div>
-                  <p className="text-gray-600 text-sm mb-2 line-clamp-2">{quest.description}</p>
-                  <div className="flex items-center text-gray-500 text-sm mb-2">
-                    <MapPin className="w-4 h-4 mr-1" />
+                  <p className="text-gray-300 text-sm mb-2 line-clamp-2">{quest.description}</p>
+                  <div className="flex items-center text-gray-400 text-sm mb-2">
+                    <MapPin className="w-4 h-4 mr-1 text-[#FFC23C]" />
                     <span className="line-clamp-1">{quest.location.address}</span>
                   </div>
                   <div className="flex gap-2">
-                    <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-medium capitalize">
+                    <span className="bg-[#31087B]/50 text-[#FFC23C] px-2 py-1 rounded text-xs font-medium capitalize border border-[#FFC23C]/30">
                       {quest.category}
                     </span>
                   </div>
@@ -141,7 +141,7 @@ export default function BrowseQuests() {
         </div>
 
         {/* Map */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl overflow-hidden border-2 border-[#FA2FB5]/30">
           <QuestMap quests={filteredQuests} onQuestClick={handleQuestClick} />
         </div>
       </div>

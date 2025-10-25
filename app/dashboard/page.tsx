@@ -90,67 +90,67 @@ export default function UserDashboard() {
     <div className="p-6 lg:p-8">
       {/* Welcome Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          Welcome Back, Quest Hunter! 🌱
+        <h1 className="text-3xl font-bold text-white mb-2">
+          Welcome Back, Quest Hunter
         </h1>
-        <p className="text-gray-600">
+        <p className="text-gray-300">
           Continue your impact journey and grow your garden
         </p>
       </div>
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
+        <div className="bg-gradient-to-br from-[#FA2FB5] to-[#31087B] rounded-lg shadow-xl p-6 text-white border-2 border-[#FA2FB5]/30">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-green-100">Current Stage</span>
-            <span className="text-4xl">{getStageEmoji(userStats.stage)}</span>
+            <span className="text-white/90">Current Stage</span>
+            <Sprout className="w-8 h-8 text-[#FFC23C]" />
           </div>
           <p className="text-3xl font-bold capitalize">{userStats.stage}</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-6 border-2 border-[#FA2FB5]/30">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <TrendingUp className="w-5 h-5 text-blue-600" />
+            <div className="p-2 bg-[#FFC23C]/20 rounded-lg">
+              <TrendingUp className="w-5 h-5 text-[#FFC23C]" />
             </div>
-            <span className="text-gray-600">Level</span>
+            <span className="text-gray-300">Level</span>
           </div>
-          <p className="text-3xl font-bold text-gray-800">{userStats.level}</p>
+          <p className="text-3xl font-bold text-white">{userStats.level}</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-6 border-2 border-[#FA2FB5]/30">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Award className="w-5 h-5 text-purple-600" />
+            <div className="p-2 bg-[#FA2FB5]/20 rounded-lg">
+              <Award className="w-5 h-5 text-[#FA2FB5]" />
             </div>
-            <span className="text-gray-600">Impact Points</span>
+            <span className="text-gray-300">Impact Points</span>
           </div>
-          <p className="text-3xl font-bold text-gray-800">{userStats.totalImpactPoints}</p>
+          <p className="text-3xl font-bold text-white">{userStats.totalImpactPoints}</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-6 border-2 border-[#FA2FB5]/30">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Target className="w-5 h-5 text-green-600" />
+            <div className="p-2 bg-[#31087B]/40 rounded-lg">
+              <Target className="w-5 h-5 text-[#FFC23C]" />
             </div>
-            <span className="text-gray-600">Quests Done</span>
+            <span className="text-gray-300">Quests Done</span>
           </div>
-          <p className="text-3xl font-bold text-gray-800">{userStats.completedQuests}</p>
+          <p className="text-3xl font-bold text-white">{userStats.completedQuests}</p>
         </div>
       </div>
 
       {/* Progress to Next Stage */}
       {nextStage.needed > 0 && (
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-6 mb-8 border-2 border-[#FFC23C]/30">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xl font-bold text-gray-800">Progress to {nextStage.next}</h2>
-            <span className="text-sm font-medium text-gray-600">
+            <h2 className="text-xl font-bold text-white">Progress to {nextStage.next}</h2>
+            <span className="text-sm font-medium text-gray-300">
               {nextStage.needed} points needed
             </span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-4">
+          <div className="w-full bg-[#100720] rounded-full h-4 border border-[#FA2FB5]/30">
             <div
-              className="bg-gradient-to-r from-green-500 to-green-600 h-4 rounded-full transition-all duration-500"
+              className="bg-gradient-to-r from-[#FA2FB5] to-[#FFC23C] h-4 rounded-full transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -160,55 +160,55 @@ export default function UserDashboard() {
       {/* Quick Actions & Recent Quests */}
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Quick Actions */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Quick Actions</h2>
+        <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-6 border-2 border-[#FA2FB5]/30">
+          <h2 className="text-xl font-bold text-white mb-4">Quick Actions</h2>
           <div className="space-y-3">
             <button
               onClick={() => router.push('/dashboard/quests')}
-              className="w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors text-left flex items-center justify-between"
+              className="w-full px-4 py-3 bg-gradient-to-r from-[#FA2FB5] to-[#31087B] hover:from-[#31087B] hover:to-[#FA2FB5] text-white rounded-lg font-medium transition-all text-left flex items-center justify-between shadow-lg"
             >
-              <span>🗺️ Browse Available Quests</span>
+              <span>Browse Available Quests</span>
               <span className="text-sm opacity-80">→</span>
             </button>
             <button
               onClick={() => router.push('/dashboard/garden')}
-              className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors text-left flex items-center justify-between"
+              className="w-full px-4 py-3 bg-gradient-to-r from-[#31087B] to-[#100720] hover:from-[#100720] hover:to-[#31087B] text-white rounded-lg font-medium transition-all text-left flex items-center justify-between shadow-lg"
             >
-              <span>🌱 View My Garden</span>
+              <span>View My Garden</span>
               <span className="text-sm opacity-80">→</span>
             </button>
             <button
               onClick={() => router.push('/dashboard/submissions')}
-              className="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors text-left flex items-center justify-between"
+              className="w-full px-4 py-3 bg-gradient-to-r from-[#FFC23C] to-[#FA2FB5] hover:from-[#FA2FB5] hover:to-[#FFC23C] text-white rounded-lg font-medium transition-all text-left flex items-center justify-between shadow-lg"
             >
-              <span>📋 My Submissions</span>
+              <span>My Submissions</span>
               <span className="text-sm opacity-80">→</span>
             </button>
           </div>
         </div>
 
         {/* Featured Quests */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Featured Quests</h2>
+        <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-6 border-2 border-[#FA2FB5]/30">
+          <h2 className="text-xl font-bold text-white mb-4">Featured Quests</h2>
           {recentQuests.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No quests available</p>
+            <p className="text-gray-400 text-center py-8">No quests available</p>
           ) : (
             <div className="space-y-3">
               {recentQuests.map((quest) => (
                 <button
                   key={quest._id}
                   onClick={() => router.push(`/quest/${quest._id}`)}
-                  className="w-full p-4 border border-gray-200 rounded-lg hover:border-green-500 hover:shadow-md transition-all text-left"
+                  className="w-full p-4 bg-white/5 border-2 border-[#FA2FB5]/20 rounded-lg hover:border-[#FA2FB5] hover:bg-white/10 transition-all text-left shadow-lg"
                 >
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-gray-800">{quest.title}</h3>
-                    <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
+                    <h3 className="font-bold text-white">{quest.title}</h3>
+                    <span className="bg-gradient-to-r from-[#FFC23C] to-[#FA2FB5] text-white px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2">
                       +{quest.impactPoints} pts
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600 line-clamp-2">{quest.description}</p>
+                  <p className="text-sm text-gray-300 line-clamp-2">{quest.description}</p>
                   <div className="mt-2">
-                    <span className="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
+                    <span className="inline-block bg-[#31087B]/50 text-[#FFC23C] px-2 py-1 rounded text-xs border border-[#FFC23C]/30">
                       {quest.category}
                     </span>
                   </div>

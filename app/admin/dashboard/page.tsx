@@ -114,10 +114,10 @@ export default function AdminDashboard() {
     <div className="p-6 lg:p-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+        <h1 className="text-3xl font-bold text-white mb-2">
           Quest Master Dashboard
         </h1>
-        <p className="text-gray-600">
+        <p className="text-gray-300">
           Welcome back! Here's an overview of your impact platform.
         </p>
       </div>
@@ -126,9 +126,9 @@ export default function AdminDashboard() {
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-white rounded-lg shadow p-6 animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-              <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+            <div key={i} className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-6 animate-pulse border-2 border-[#FA2FB5]/30">
+              <div className="h-4 bg-white/20 rounded w-1/2 mb-4"></div>
+              <div className="h-8 bg-white/20 rounded w-1/3"></div>
             </div>
           ))}
         </div>
@@ -137,16 +137,16 @@ export default function AdminDashboard() {
           {statCards.map((card, index) => {
             const Icon = card.icon;
             return (
-              <div key={index} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+              <div key={index} className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-6 hover:shadow-2xl transition-all border-2 border-[#FA2FB5]/30 hover:border-[#FA2FB5]">
                 <div className="flex items-start justify-between mb-4">
-                  <div className={`p-3 rounded-lg ${card.color}`}>
-                    <Icon className="w-6 h-6" />
+                  <div className="p-3 rounded-lg bg-gradient-to-br from-[#FA2FB5]/20 to-[#FFC23C]/20">
+                    <Icon className="w-6 h-6 text-[#FFC23C]" />
                   </div>
                 </div>
-                <h3 className="text-gray-600 text-sm font-medium mb-1">
+                <h3 className="text-gray-300 text-sm font-medium mb-1">
                   {card.title}
                 </h3>
-                <p className="text-3xl font-bold text-gray-800">
+                <p className="text-3xl font-bold text-white">
                   {card.value}
                 </p>
               </div>
@@ -157,24 +157,24 @@ export default function AdminDashboard() {
 
       {/* Quick Actions */}
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Quick Actions</h2>
+        <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-6 border-2 border-[#FA2FB5]/30">
+          <h2 className="text-xl font-bold text-white mb-4">Quick Actions</h2>
           <div className="space-y-3">
             <a
               href="/admin/create-quest"
-              className="block w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg text-center font-medium transition-colors"
+              className="block w-full px-4 py-3 bg-gradient-to-r from-[#FA2FB5] to-[#FFC23C] hover:from-[#FFC23C] hover:to-[#FA2FB5] text-white rounded-lg text-center font-medium transition-all shadow-lg"
             >
-              + Create New Quest
+              Create New Quest
             </a>
             <a
               href="/admin/submissions"
-              className="block w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-center font-medium transition-colors"
+              className="block w-full px-4 py-3 bg-gradient-to-r from-[#31087B] to-[#FA2FB5] hover:from-[#FA2FB5] hover:to-[#31087B] text-white rounded-lg text-center font-medium transition-all shadow-lg"
             >
               Review Pending Submissions
             </a>
             <a
               href="/admin/quests"
-              className="block w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-center font-medium transition-colors"
+              className="block w-full px-4 py-3 bg-gradient-to-r from-[#100720] to-[#31087B] hover:from-[#31087B] hover:to-[#100720] text-white rounded-lg text-center font-medium transition-all shadow-lg"
             >
               Manage All Quests
             </a>
@@ -182,52 +182,52 @@ export default function AdminDashboard() {
         </div>
 
         {/* Recent Activity */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Platform Status</h2>
+        <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-6 border-2 border-[#FA2FB5]/30">
+          <h2 className="text-xl font-bold text-white mb-4">Platform Status</h2>
           <div className="space-y-4">
             {stats.pendingSubmissions > 0 ? (
-              <div className="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+              <div className="flex items-start gap-3 p-3 bg-[#FFC23C]/20 rounded-lg border border-[#FFC23C]/50">
+                <AlertCircle className="w-5 h-5 text-[#FFC23C] mt-0.5" />
                 <div>
-                  <p className="font-medium text-yellow-900">
+                  <p className="font-medium text-white">
                     {stats.pendingSubmissions} submission{stats.pendingSubmissions !== 1 ? 's' : ''} awaiting review
                   </p>
-                  <p className="text-sm text-yellow-700">
+                  <p className="text-sm text-gray-300">
                     Review submissions to help users earn their rewards
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
+              <div className="flex items-start gap-3 p-3 bg-[#FA2FB5]/20 rounded-lg border border-[#FA2FB5]/50">
+                <CheckCircle className="w-5 h-5 text-[#FA2FB5] mt-0.5" />
                 <div>
-                  <p className="font-medium text-green-900">All caught up!</p>
-                  <p className="text-sm text-green-700">
+                  <p className="font-medium text-white">All caught up!</p>
+                  <p className="text-sm text-gray-300">
                     No pending submissions to review
                   </p>
                 </div>
               </div>
             )}
 
-            <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
-              <Map className="w-5 h-5 text-blue-600 mt-0.5" />
+            <div className="flex items-start gap-3 p-3 bg-[#31087B]/40 rounded-lg border border-[#FA2FB5]/30">
+              <Map className="w-5 h-5 text-[#FFC23C] mt-0.5" />
               <div>
-                <p className="font-medium text-blue-900">
+                <p className="font-medium text-white">
                   {stats.activeQuests} active quest{stats.activeQuests !== 1 ? 's' : ''}
                 </p>
-                <p className="text-sm text-blue-700">
+                <p className="text-sm text-gray-300">
                   Keep your quests updated and engaging
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-3 bg-purple-50 rounded-lg">
-              <Users className="w-5 h-5 text-purple-600 mt-0.5" />
+            <div className="flex items-start gap-3 p-3 bg-[#31087B]/40 rounded-lg border border-[#FA2FB5]/30">
+              <Users className="w-5 h-5 text-[#FFC23C] mt-0.5" />
               <div>
-                <p className="font-medium text-purple-900">
+                <p className="font-medium text-white">
                   {stats.totalUsers} registered user{stats.totalUsers !== 1 ? 's' : ''}
                 </p>
-                <p className="text-sm text-purple-700">
+                <p className="text-sm text-gray-300">
                   Growing community of impact makers
                 </p>
               </div>
