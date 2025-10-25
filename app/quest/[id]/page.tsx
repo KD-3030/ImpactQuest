@@ -45,12 +45,15 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
 
   const fetchQuest = async () => {
     try {
-      const response = await fetch(`/api/quests`);
+      const response = await fetch(`/api/quests/${params.id}`);
+      if (!response.ok) {
+        throw new Error('Quest not found');
+      }
       const data = await response.json();
-      const foundQuest = data.quests.find((q: Quest) => q._id === params.id);
-      setQuest(foundQuest || null);
+      setQuest(data.quest);
     } catch (error) {
       console.error('Error fetching quest:', error);
+      setQuest(null);
     } finally {
       setLoading(false);
     }
