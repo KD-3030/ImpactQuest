@@ -60,6 +60,26 @@ contract ImpactQuest is ERC20, Ownable, ReentrancyGuard {
         uint256 totalCompletions; // Track completions for creator rewards
     }
     
+    enum RewardTransactionType {
+        QuestCompletion,
+        StageUpgrade,
+        CreatorReward,
+        Redemption,
+        RedemptionRefund
+    }
+    
+    struct RewardTransaction {
+        uint256 id;
+        address user;
+        RewardTransactionType transactionType;
+        int256 amount; // Positive for earning, negative for spending
+        uint256 questId; // 0 if not quest-related
+        string description;
+        uint256 timestamp;
+        UserLevel previousLevel; // For stage upgrades
+        UserLevel newLevel; // For stage upgrades
+    }
+    
     // ============ State Variables ============
     
     mapping(address => UserProfile) public userProfiles;
@@ -68,11 +88,16 @@ contract ImpactQuest is ERC20, Ownable, ReentrancyGuard {
     mapping(bytes32 => bool) public usedProofHashes; // Prevent proof replay attacks
     
     QuestCompletion[] public completionHistory;
+    RewardTransaction[] public rewardTransactions;
+    
+    // User-specific transaction tracking
+    mapping(address => uint256[]) private userTransactionIds;
     
     // Category tracking - for efficient filtering
     mapping(QuestCategory => uint256[]) private questsByCategory;
     
     uint256 public nextQuestId = 1;
+    uint256 public nextTransactionId = 1;
     uint256 public constant TOKENS_PER_QUEST = 10 * 10**18; // 10 IMP tokens
     
     // Level thresholds (impact score required to reach each level)
@@ -114,6 +139,13 @@ contract ImpactQuest is ERC20, Ownable, ReentrancyGuard {
     );
     event QuestUpdated(uint256 indexed questId, bool isActive);
     event OracleAddressUpdated(address indexed oldOracle, address indexed newOracle);
+    event RewardTransactionRecorded(
+        uint256 indexed transactionId,
+        address indexed user,
+        RewardTransactionType transactionType,
+        int256 amount,
+        uint256 timestamp
+    );
     
     // ============ Modifiers ============
     
@@ -210,10 +242,32 @@ contract ImpactQuest is ERC20, Ownable, ReentrancyGuard {
         // Mint reward tokens
         _mint(user, quest.rewardAmount);
         
+        // Record reward transaction for quest completion
+        _recordTransaction(
+            user,
+            RewardTransactionType.QuestCompletion,
+            int256(quest.rewardAmount),
+            questId,
+            string(abi.encodePacked("Completed quest: ", quest.name)),
+            oldLevel,
+            oldLevel
+        );
+        
         // Reward quest creator
         if (quest.creator != address(0) && quest.creatorRewardPerCompletion > 0) {
             _mint(quest.creator, quest.creatorRewardPerCompletion);
             quests[questId].totalCompletions += 1;
+            
+            // Record creator reward transaction
+            _recordTransaction(
+                quest.creator,
+                RewardTransactionType.CreatorReward,
+                int256(quest.creatorRewardPerCompletion),
+                questId,
+                string(abi.encodePacked("Creator reward for quest: ", quest.name)),
+                userProfiles[quest.creator].level,
+                userProfiles[quest.creator].level
+            );
             
             emit CreatorRewarded(
                 quest.creator,
@@ -227,6 +281,22 @@ contract ImpactQuest is ERC20, Ownable, ReentrancyGuard {
         UserLevel newLevel = _calculateLevel(profile.totalImpactScore);
         if (newLevel != oldLevel) {
             profile.level = newLevel;
+            
+            // Calculate stage upgrade bonus (10 tokens per level up)
+            uint256 stageBonus = 10 * 10**18;
+            _mint(user, stageBonus);
+            
+            // Record stage upgrade transaction
+            _recordTransaction(
+                user,
+                RewardTransactionType.StageUpgrade,
+                int256(stageBonus),
+                0,
+                string(abi.encodePacked("Level up bonus: ", _getLevelName(newLevel))),
+                oldLevel,
+                newLevel
+            );
+            
             emit LevelUp(user, oldLevel, newLevel, block.timestamp);
         }
         
@@ -497,6 +567,185 @@ contract ImpactQuest is ERC20, Ownable, ReentrancyGuard {
         if (impactScore >= SPROUT_THRESHOLD) return UserLevel.Sprout;
         if (impactScore >= SEEDLING_THRESHOLD) return UserLevel.Seedling;
         return UserLevel.None;
+    }
+    
+    /**
+     * @dev Record a reward transaction
+     */
+    function _recordTransaction(
+        address user,
+        RewardTransactionType transactionType,
+        int256 amount,
+        uint256 questId,
+        string memory description,
+        UserLevel previousLevel,
+        UserLevel newLevel
+    ) internal {
+        uint256 transactionId = nextTransactionId++;
+        
+        rewardTransactions.push(RewardTransaction({
+            id: transactionId,
+            user: user,
+            transactionType: transactionType,
+            amount: amount,
+            questId: questId,
+            description: description,
+            timestamp: block.timestamp,
+            previousLevel: previousLevel,
+            newLevel: newLevel
+        }));
+        
+        // Track user's transaction IDs
+        userTransactionIds[user].push(transactionId - 1); // Store array index
+        
+        emit RewardTransactionRecorded(
+            transactionId,
+            user,
+            transactionType,
+            amount,
+            block.timestamp
+        );
+    }
+    
+    /**
+     * @dev Get level name as string
+     */
+    function _getLevelName(UserLevel level) internal pure returns (string memory) {
+        if (level == UserLevel.Tree) return "Tree";
+        if (level == UserLevel.Sapling) return "Sapling";
+        if (level == UserLevel.Sprout) return "Sprout";
+        if (level == UserLevel.Seedling) return "Seedling";
+        return "None";
+    }
+    
+    // ============ Transaction Query Functions ============
+    
+    /**
+     * @dev Get total number of reward transactions
+     */
+    function getTotalTransactions() external view returns (uint256) {
+        return rewardTransactions.length;
+    }
+    
+    /**
+     * @dev Get transaction by ID
+     */
+    function getTransaction(uint256 transactionId) external view returns (
+        uint256 id,
+        address user,
+        RewardTransactionType transactionType,
+        int256 amount,
+        uint256 questId,
+        string memory description,
+        uint256 timestamp,
+        UserLevel previousLevel,
+        UserLevel newLevel
+    ) {
+        require(transactionId > 0 && transactionId < nextTransactionId, "Invalid transaction ID");
+        RewardTransaction memory txn = rewardTransactions[transactionId - 1];
+        return (
+            txn.id,
+            txn.user,
+            txn.transactionType,
+            txn.amount,
+            txn.questId,
+            txn.description,
+            txn.timestamp,
+            txn.previousLevel,
+            txn.newLevel
+        );
+    }
+    
+    /**
+     * @dev Get all transaction IDs for a user
+     */
+    function getUserTransactionIds(address user) external view returns (uint256[] memory) {
+        uint256[] memory indices = userTransactionIds[user];
+        uint256[] memory ids = new uint256[](indices.length);
+        
+        for (uint256 i = 0; i < indices.length; i++) {
+            ids[i] = rewardTransactions[indices[i]].id;
+        }
+        
+        return ids;
+    }
+    
+    /**
+     * @dev Get user's transaction count
+     */
+    function getUserTransactionCount(address user) external view returns (uint256) {
+        return userTransactionIds[user].length;
+    }
+    
+    /**
+     * @dev Get user's last N transactions
+     */
+    function getUserRecentTransactions(address user, uint256 count) 
+        external view returns (RewardTransaction[] memory) 
+    {
+        uint256[] memory indices = userTransactionIds[user];
+        uint256 resultCount = count > indices.length ? indices.length : count;
+        
+        RewardTransaction[] memory result = new RewardTransaction[](resultCount);
+        
+        // Get the last N transactions (most recent first)
+        for (uint256 i = 0; i < resultCount; i++) {
+            uint256 index = indices[indices.length - 1 - i];
+            result[i] = rewardTransactions[index];
+        }
+        
+        return result;
+    }
+    
+    /**
+     * @dev Record a redemption (spending tokens) - called by backend
+     */
+    function recordRedemption(
+        address user,
+        uint256 tokensSpent,
+        string memory shopName
+    ) external onlyOracle {
+        require(userProfiles[user].isActive, "User not registered");
+        require(balanceOf(user) >= tokensSpent, "Insufficient token balance");
+        
+        // Burn the tokens (or transfer to a treasury address if preferred)
+        _burn(user, tokensSpent);
+        
+        // Record negative transaction
+        _recordTransaction(
+            user,
+            RewardTransactionType.Redemption,
+            -int256(tokensSpent),
+            0,
+            string(abi.encodePacked("Redeemed at ", shopName)),
+            userProfiles[user].level,
+            userProfiles[user].level
+        );
+    }
+    
+    /**
+     * @dev Record a redemption refund (tokens returned) - called by backend
+     */
+    function recordRedemptionRefund(
+        address user,
+        uint256 tokensRefunded,
+        string memory reason
+    ) external onlyOracle {
+        require(userProfiles[user].isActive, "User not registered");
+        
+        // Mint the refunded tokens back
+        _mint(user, tokensRefunded);
+        
+        // Record positive transaction
+        _recordTransaction(
+            user,
+            RewardTransactionType.RedemptionRefund,
+            int256(tokensRefunded),
+            0,
+            string(abi.encodePacked("Refund: ", reason)),
+            userProfiles[user].level,
+            userProfiles[user].level
+        );
     }
     
     /**

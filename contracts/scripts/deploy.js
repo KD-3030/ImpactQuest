@@ -105,7 +105,8 @@ async function main() {
       quest.rewardAmount,
       quest.impactScore,
       quest.cooldownPeriod,
-      quest.category
+      quest.category,
+      hre.ethers.parseEther("1") // creatorRewardPerCompletion: 1 IMP token per completion
     );
     await tx.wait();
     const categoryNames = ["Environmental", "Community Service", "Education", "Waste Reduction", "Sustainability"];
