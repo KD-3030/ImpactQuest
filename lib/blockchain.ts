@@ -154,6 +154,16 @@ export async function joinPlatform(walletClient: any) {
     };
   } catch (error: any) {
     console.error('Error joining platform:', error);
+    
+    // Check if user is already registered
+    if (error.message?.includes('User already registered')) {
+      return {
+        success: false,
+        error: 'User already registered',
+        alreadyRegistered: true
+      };
+    }
+    
     return {
       success: false,
       error: error.message

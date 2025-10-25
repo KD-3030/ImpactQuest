@@ -52,6 +52,36 @@ export async function PATCH(
           amount: redemption.tokensRedeemed,
           description: `Refund for cancelled redemption ${redemption.redemptionCode}`,
         });
+
+        // Record refund on blockchain (mint tokens back)
+        try {
+          const oracleResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/oracle/record-redemption-refund`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userAddress: user.walletAddress,
+              tokensRefunded: redemption.tokensRedeemed,
+              reason: `Cancelled redemption ${redemption.redemptionCode}`,
+            }),
+          });
+
+          const oracleData = await oracleResponse.json();
+          
+          if (oracleData.success) {
+            console.log('Tokens refunded on blockchain:', oracleData.transactionHash);
+            // Store blockchain transaction info in redemption record
+            redemption.blockchainRefundTx = oracleData.transactionHash;
+          } else {
+            console.error('Blockchain refund failed:', oracleData.error);
+            // Don't fail the whole request if blockchain fails
+            // User still gets MongoDB tokens refunded
+          }
+        } catch (oracleError: any) {
+          console.error('Error calling refund oracle:', oracleError.message);
+          // Continue with MongoDB update even if blockchain fails
+        }
       }
     }
 

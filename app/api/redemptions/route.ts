@@ -147,6 +147,58 @@ export async function POST(request: NextRequest) {
       timestamp: Date.now(),
     });
 
+    // Check if user is registered on blockchain first
+    let blockchainResult = null;
+    try {
+      const registrationCheck = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/oracle/register-user?userAddress=${walletAddress}`);
+      const registrationData = await registrationCheck.json();
+      
+      if (!registrationData.isRegistered) {
+        // User not registered on blockchain
+        console.warn('User not registered on blockchain:', walletAddress);
+        blockchainResult = {
+          error: 'not_registered',
+          message: 'Please register on blockchain by calling joinImpactQuest from your wallet',
+          registrationNeeded: true,
+        };
+      } else {
+        // User is registered, proceed with redemption
+        const oracleResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/oracle/record-redemption`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userAddress: walletAddress,
+            tokensSpent: tokensRequired,
+            shopName: shop?.name || 'Direct Redemption',
+          }),
+        });
+
+        const oracleData = await oracleResponse.json();
+        
+        if (oracleData.success) {
+          blockchainResult = {
+            transactionHash: oracleData.transactionHash,
+            blockNumber: oracleData.blockNumber,
+          };
+          console.log('Tokens burned on blockchain:', oracleData.transactionHash);
+        } else {
+          console.error('Blockchain redemption failed:', oracleData.error);
+          blockchainResult = {
+            error: oracleData.error,
+            message: 'Blockchain transaction failed but MongoDB updated',
+          };
+        }
+      }
+    } catch (oracleError: any) {
+      console.error('Error calling redemption oracle:', oracleError.message);
+      blockchainResult = {
+        error: 'oracle_error',
+        message: oracleError.message,
+      };
+    }
+
     // Populate shop info before returning
     if (shopId) {
       await redemption.populate('shopId', 'name category location imageUrl');
@@ -156,6 +208,7 @@ export async function POST(request: NextRequest) {
       success: true,
       redemption,
       remainingTokens: user.rewardTokens,
+      blockchain: blockchainResult, // Include blockchain transaction info
     });
   } catch (error: any) {
     console.error('Error creating redemption:', error);
