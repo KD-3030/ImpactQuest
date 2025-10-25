@@ -1,13 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Map, 
   Users, 
   CheckCircle, 
   TrendingUp,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  ClipboardList,
+  Settings
 } from 'lucide-react';
 import { Container, PageHeader, Card, CardBody, CardTitle, CardDescription, Grid, Button } from '@/components/ui';
 
@@ -21,6 +25,7 @@ interface DashboardStats {
 }
 
 export default function AdminDashboard() {
+  const router = useRouter();
   const [stats, setStats] = useState<DashboardStats>({
     totalQuests: 0,
     activeQuests: 0,
@@ -144,21 +149,36 @@ export default function AdminDashboard() {
           <CardBody>
             <CardTitle className="mb-4">Quick Actions</CardTitle>
             <div className="space-y-3">
-              <a href="/admin/create-quest">
-                <Button variant="primary" fullWidth>
+              <button
+                onClick={() => router.push('/admin/create-quest')}
+                className="w-full px-4 py-3 bg-gradient-to-r from-[#FA2FB5] to-[#31087B] hover:from-[#31087B] hover:to-[#FA2FB5] text-white rounded-lg font-medium transition-all text-left flex items-center justify-between shadow-lg"
+              >
+                <span className="flex items-center gap-2">
+                  <Plus className="w-5 h-5" />
                   Create New Quest
-                </Button>
-              </a>
-              <a href="/admin/submissions">
-                <Button variant="secondary" fullWidth>
-                  Review Pending Submissions
-                </Button>
-              </a>
-              <a href="/admin/quests">
-                <Button variant="outline" fullWidth>
+                </span>
+                <span className="text-sm opacity-80">→</span>
+              </button>
+              <button
+                onClick={() => router.push('/admin/submissions')}
+                className="w-full px-4 py-3 bg-gradient-to-r from-[#31087B] to-[#100720] hover:from-[#100720] hover:to-[#31087B] text-white rounded-lg font-medium transition-all text-left flex items-center justify-between shadow-lg"
+              >
+                <span className="flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5" />
+                  Review Submissions
+                </span>
+                <span className="text-sm opacity-80">→</span>
+              </button>
+              <button
+                onClick={() => router.push('/admin/quests')}
+                className="w-full px-4 py-3 bg-gradient-to-r from-[#FFC23C] to-[#FA2FB5] hover:from-[#FA2FB5] hover:to-[#FFC23C] text-white rounded-lg font-medium transition-all text-left flex items-center justify-between shadow-lg"
+              >
+                <span className="flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
                   Manage All Quests
-                </Button>
-              </a>
+                </span>
+                <span className="text-sm opacity-80">→</span>
+              </button>
             </div>
           </CardBody>
         </Card>
