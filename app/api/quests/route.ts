@@ -49,7 +49,16 @@ export async function POST(request: NextRequest) {
     await dbConnect();
 
     const body = await request.json();
-    const { title, description, coordinates, address, category, impactPoints, verificationPrompt } = body;
+    const { 
+      title, 
+      description, 
+      coordinates, 
+      address, 
+      category, 
+      impactPoints, 
+      verificationPrompt, 
+      creatorAddress // Wallet address of admin creating the quest
+    } = body;
 
     // Validate required fields
     if (!title || !description || !coordinates || !category || !impactPoints || !verificationPrompt) {
@@ -70,6 +79,7 @@ export async function POST(request: NextRequest) {
       category,
       impactPoints,
       verificationPrompt,
+      creatorAddress: creatorAddress?.toLowerCase(), // Store creator address for rewards
     });
 
     // Emit real-time event for quest creation
