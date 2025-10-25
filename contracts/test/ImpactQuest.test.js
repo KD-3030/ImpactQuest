@@ -28,7 +28,8 @@ describe("ImpactQuest Contract Tests", function () {
       ethers.parseEther("10"), // 10 IMP tokens
       10, // 10 impact points
       86400, // 24 hour cooldown
-      0 // Environmental category
+      0, // Environmental category
+      ethers.parseEther("2") // 2 IMP creator reward per completion
     );
 
     await impactQuest.createQuest(
@@ -37,7 +38,8 @@ describe("ImpactQuest Contract Tests", function () {
       ethers.parseEther("25"), // 25 IMP tokens
       25, // 25 impact points
       172800, // 48 hour cooldown
-      0 // Environmental category
+      0, // Environmental category
+      ethers.parseEther("5") // 5 IMP creator reward per completion
     );
   });
 
@@ -96,17 +98,21 @@ describe("ImpactQuest Contract Tests", function () {
       expect(quest.isActive).to.equal(true);
     });
 
-    it("Should only allow owner to create quests", async function () {
-      await expect(
-        impactQuest.connect(user1).createQuest(
-          "Test Quest",
-          "Description",
-          ethers.parseEther("5"),
-          5,
-          3600,
-          0 // Environmental category
-        )
-      ).to.be.revertedWithCustomError(impactQuest, "OwnableUnauthorizedAccount");
+    it("Should allow anyone to create quests", async function () {
+      const tx = await impactQuest.connect(user1).createQuest(
+        "Test Quest",
+        "Description",
+        ethers.parseEther("5"),
+        5,
+        3600,
+        0, // Environmental category
+        ethers.parseEther("1") // 1 IMP creator reward
+      );
+      await tx.wait();
+      
+      const quest = await impactQuest.getQuest(3);
+      expect(quest.creator).to.equal(user1.address);
+      expect(quest.creatorRewardPerCompletion).to.equal(ethers.parseEther("1"));
     });
 
     it("Should increment quest IDs", async function () {
@@ -162,6 +168,81 @@ describe("ImpactQuest Contract Tests", function () {
           proofHash,
           ethers.parseEther("10")
         );
+    });
+
+    it("Should reward quest creator when quest is completed", async function () {
+      // Get initial balances
+      const initialCreatorBalance = await impactQuest.balanceOf(owner.address);
+      const initialUserBalance = await impactQuest.balanceOf(user1.address);
+      
+      const proofHash = ethers.keccak256(ethers.toUtf8Bytes("creator_reward_proof"));
+      
+      // Complete the quest (Beach Cleanup - creator reward is 2 IMP)
+      const tx = await impactQuest.connect(oracle).completeQuest(
+        user1.address,
+        BEACH_CLEANUP_ID,
+        proofHash
+      );
+      
+      // Check balances after completion
+      const finalCreatorBalance = await impactQuest.balanceOf(owner.address);
+      const finalUserBalance = await impactQuest.balanceOf(user1.address);
+      
+      // User should receive quest reward (10 IMP)
+      expect(finalUserBalance - initialUserBalance).to.equal(ethers.parseEther("10"));
+      
+      // Creator should receive creator reward (2 IMP)
+      expect(finalCreatorBalance - initialCreatorBalance).to.equal(ethers.parseEther("2"));
+      
+      // Check CreatorRewarded event was emitted
+      await expect(tx)
+        .to.emit(impactQuest, "CreatorRewarded")
+        .withArgs(
+          owner.address,
+          BEACH_CLEANUP_ID,
+          ethers.parseEther("2"),
+          1 // totalCompletions = 1
+        );
+      
+      // Verify totalCompletions was incremented
+      const quest = await impactQuest.getQuest(BEACH_CLEANUP_ID);
+      expect(quest.totalCompletions).to.equal(1);
+    });
+
+    it("Should track multiple completions and reward creator each time", async function () {
+      // Register second user
+      await impactQuest.connect(user2).joinImpactQuest();
+      
+      const initialCreatorBalance = await impactQuest.balanceOf(owner.address);
+      
+      // First completion by user1
+      const proofHash1 = ethers.keccak256(ethers.toUtf8Bytes("multi_proof_1"));
+      await impactQuest.connect(oracle).completeQuest(
+        user1.address,
+        BEACH_CLEANUP_ID,
+        proofHash1
+      );
+      
+      // Wait for cooldown to pass
+      await ethers.provider.send("evm_increaseTime", [86400]); // 24 hours
+      await ethers.provider.send("evm_mine");
+      
+      // Second completion by user2
+      const proofHash2 = ethers.keccak256(ethers.toUtf8Bytes("multi_proof_2"));
+      await impactQuest.connect(oracle).completeQuest(
+        user2.address,
+        BEACH_CLEANUP_ID,
+        proofHash2
+      );
+      
+      const finalCreatorBalance = await impactQuest.balanceOf(owner.address);
+      
+      // Creator should receive 2 IMP × 2 completions = 4 IMP total
+      expect(finalCreatorBalance - initialCreatorBalance).to.equal(ethers.parseEther("4"));
+      
+      // Verify totalCompletions
+      const quest = await impactQuest.getQuest(BEACH_CLEANUP_ID);
+      expect(quest.totalCompletions).to.equal(2);
     });
 
     it("Should prevent proof hash reuse (anti-replay)", async function () {
@@ -449,7 +530,8 @@ describe("ImpactQuest Contract Tests", function () {
         ethers.parseEther("20"),
         20,
         86400,
-        1 // CommunityService
+        1, // CommunityService
+        ethers.parseEther("3") // Creator reward per completion
       );
 
       const communityQuests = await impactQuest.getQuestsByCategory(1);

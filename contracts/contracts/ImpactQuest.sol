@@ -55,6 +55,9 @@ contract ImpactQuest is ERC20, Ownable, ReentrancyGuard {
         bool isActive;
         uint256 cooldownPeriod; // Minimum time between completions (in seconds)
         QuestCategory category; // Quest category for filtering
+        address creator; // Quest creator address
+        uint256 creatorRewardPerCompletion; // Tokens creator gets per completion
+        uint256 totalCompletions; // Track completions for creator rewards
     }
     
     // ============ State Variables ============
@@ -90,6 +93,12 @@ contract ImpactQuest is ERC20, Ownable, ReentrancyGuard {
         uint256 timestamp,
         bytes32 proofHash,
         uint256 rewardAmount
+    );
+    event CreatorRewarded(
+        address indexed creator,
+        uint256 indexed questId,
+        uint256 rewardAmount,
+        uint256 totalCompletions
     );
     event LevelUp(
         address indexed user,
@@ -201,6 +210,19 @@ contract ImpactQuest is ERC20, Ownable, ReentrancyGuard {
         // Mint reward tokens
         _mint(user, quest.rewardAmount);
         
+        // Reward quest creator
+        if (quest.creator != address(0) && quest.creatorRewardPerCompletion > 0) {
+            _mint(quest.creator, quest.creatorRewardPerCompletion);
+            quests[questId].totalCompletions += 1;
+            
+            emit CreatorRewarded(
+                quest.creator,
+                questId,
+                quest.creatorRewardPerCompletion,
+                quests[questId].totalCompletions
+            );
+        }
+        
         // Check for level up
         UserLevel newLevel = _calculateLevel(profile.totalImpactScore);
         if (newLevel != oldLevel) {
@@ -305,8 +327,9 @@ contract ImpactQuest is ERC20, Ownable, ReentrancyGuard {
         uint256 rewardAmount,
         uint256 impactScore,
         uint256 cooldownPeriod,
-        QuestCategory category
-    ) external onlyOwner returns (uint256) {
+        QuestCategory category,
+        uint256 creatorRewardPerCompletion
+    ) external returns (uint256) {
         require(bytes(name).length > 0, "Quest name required");
         require(rewardAmount > 0, "Reward must be positive");
         require(impactScore > 0, "Impact score must be positive");
@@ -321,7 +344,10 @@ contract ImpactQuest is ERC20, Ownable, ReentrancyGuard {
             impactScore: impactScore,
             isActive: true,
             cooldownPeriod: cooldownPeriod,
-            category: category
+            category: category,
+            creator: msg.sender,
+            creatorRewardPerCompletion: creatorRewardPerCompletion,
+            totalCompletions: 0
         });
         
         // Add to category mapping for filtering
@@ -350,7 +376,10 @@ contract ImpactQuest is ERC20, Ownable, ReentrancyGuard {
         uint256 impactScore,
         bool isActive,
         uint256 cooldownPeriod,
-        QuestCategory category
+        QuestCategory category,
+        address creator,
+        uint256 creatorRewardPerCompletion,
+        uint256 totalCompletions
     ) {
         Quest memory quest = quests[questId];
         return (
@@ -361,7 +390,10 @@ contract ImpactQuest is ERC20, Ownable, ReentrancyGuard {
             quest.impactScore,
             quest.isActive,
             quest.cooldownPeriod,
-            quest.category
+            quest.category,
+            quest.creator,
+            quest.creatorRewardPerCompletion,
+            quest.totalCompletions
         );
     }
     

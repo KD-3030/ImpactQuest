@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { User, Quest, Submission } from '@/models';
+import realtimeManager, { REALTIME_EVENTS } from '@/lib/realtime';
 
 // Mock AI verification function (replace with actual OpenAI Vision API later)
 async function verifyImageWithAI(imageData: string, verificationPrompt: string): Promise<boolean> {
@@ -87,6 +88,14 @@ export async function POST(request: NextRequest) {
       impactPointsEarned: isVerified ? quest.impactPoints : 0,
     });
 
+    // Emit real-time event for submission creation
+    realtimeManager.emit(REALTIME_EVENTS.SUBMISSION_CREATED, {
+      submission: submission.toObject(),
+      questId: quest._id,
+      walletAddress: walletAddress.toLowerCase(),
+      timestamp: Date.now(),
+    });
+
     let blockchainResult = null;
 
     // If verified and quest has blockchain ID, trigger oracle to mint tokens
@@ -124,7 +133,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update user stats if verified (MongoDB tracking)
+    // Update user stats if verified (MongoDB tracking + real-time events)
     if (isVerified) {
       const newTotalPoints = user.totalImpactPoints + quest.impactPoints;
       const newStage = calculateStage(newTotalPoints);
@@ -136,6 +145,28 @@ export async function POST(request: NextRequest) {
       user.level = newLevel;
       user.updatedAt = new Date();
       await user.save();
+
+      // Emit real-time events for verification and user update
+      realtimeManager.emit(REALTIME_EVENTS.SUBMISSION_VERIFIED, {
+        submission: submission.toObject(),
+        questId: quest._id,
+        walletAddress: walletAddress.toLowerCase(),
+        pointsEarned: quest.impactPoints,
+        timestamp: Date.now(),
+      });
+
+      realtimeManager.emit(REALTIME_EVENTS.USER_UPDATED, {
+        walletAddress: walletAddress.toLowerCase(),
+        user: user.toObject(),
+        timestamp: Date.now(),
+      });
+
+      realtimeManager.emit(REALTIME_EVENTS.QUEST_COMPLETED, {
+        questId: quest._id,
+        walletAddress: walletAddress.toLowerCase(),
+        pointsEarned: quest.impactPoints,
+        timestamp: Date.now(),
+      });
     }
 
     return NextResponse.json({
