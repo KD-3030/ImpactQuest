@@ -1,0 +1,483 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+/**
+ * @title ImpactQuest
+ * @dev A gamified impact tracking system on Celo blockchain
+ * Features:
+ * - ERC20 IMP tokens for quest rewards
+ * - Soulbound reputation levels (non-transferable)
+ * - AI-verified quest completion with timestamps
+ * - Progressive evolution system (Seedling → Sprout → Sapling → Tree)
+ */
+contract ImpactQuest is ERC20, Ownable, ReentrancyGuard {
+    
+    // ============ Structs ============
+    
+    enum UserLevel { None, Seedling, Sprout, Sapling, Tree }
+    
+    enum QuestCategory { 
+        Environmental,      // Beach cleanups, tree planting
+        CommunityService,   // Volunteering, helping neighbors
+        Education,          // Teaching, workshops
+        WasteReduction,     // Recycling, composting
+        Sustainability      // Energy saving, water conservation
+    }
+    
+    struct UserProfile {
+        UserLevel level;
+        uint256 totalImpactScore;
+        uint256 questsCompleted;
+        uint256 lastQuestTimestamp;
+        uint256 joinedTimestamp;
+        bool isActive;
+    }
+    
+    struct QuestCompletion {
+        uint256 questId;
+        address user;
+        uint256 timestamp;
+        bytes32 proofHash; // Hash of the AI verification proof
+        uint256 rewardAmount;
+        bool verified;
+    }
+    
+    struct Quest {
+        uint256 id;
+        string name;
+        string description;
+        uint256 rewardAmount;
+        uint256 impactScore;
+        bool isActive;
+        uint256 cooldownPeriod; // Minimum time between completions (in seconds)
+        QuestCategory category; // Quest category for filtering
+    }
+    
+    // ============ State Variables ============
+    
+    mapping(address => UserProfile) public userProfiles;
+    mapping(address => mapping(uint256 => uint256)) public lastQuestCompletionTime;
+    mapping(uint256 => Quest) public quests;
+    mapping(bytes32 => bool) public usedProofHashes; // Prevent proof replay attacks
+    
+    QuestCompletion[] public completionHistory;
+    
+    // Category tracking - for efficient filtering
+    mapping(QuestCategory => uint256[]) private questsByCategory;
+    
+    uint256 public nextQuestId = 1;
+    uint256 public constant TOKENS_PER_QUEST = 10 * 10**18; // 10 IMP tokens
+    
+    // Level thresholds (impact score required to reach each level)
+    uint256 public constant SEEDLING_THRESHOLD = 10;
+    uint256 public constant SPROUT_THRESHOLD = 50;
+    uint256 public constant SAPLING_THRESHOLD = 150;
+    uint256 public constant TREE_THRESHOLD = 500;
+    
+    // Oracle address (your backend that verifies AI proofs)
+    address public oracleAddress;
+    
+    // ============ Events ============
+    
+    event UserJoined(address indexed user, uint256 timestamp);
+    event QuestCompleted(
+        address indexed user,
+        uint256 indexed questId,
+        uint256 timestamp,
+        bytes32 proofHash,
+        uint256 rewardAmount
+    );
+    event LevelUp(
+        address indexed user,
+        UserLevel oldLevel,
+        UserLevel newLevel,
+        uint256 timestamp
+    );
+    event QuestCreated(
+        uint256 indexed questId,
+        string name,
+        uint256 rewardAmount,
+        uint256 impactScore
+    );
+    event QuestUpdated(uint256 indexed questId, bool isActive);
+    event OracleAddressUpdated(address indexed oldOracle, address indexed newOracle);
+    
+    // ============ Modifiers ============
+    
+    modifier onlyOracle() {
+        require(msg.sender == oracleAddress, "Only oracle can call this");
+        _;
+    }
+    
+    modifier questExists(uint256 questId) {
+        require(quests[questId].id != 0, "Quest does not exist");
+        _;
+    }
+    
+    modifier questActive(uint256 questId) {
+        require(quests[questId].isActive, "Quest is not active");
+        _;
+    }
+    
+    // ============ Constructor ============
+    
+    constructor(address _oracleAddress) ERC20("ImpactQuest Token", "IMP") Ownable(msg.sender) {
+        require(_oracleAddress != address(0), "Invalid oracle address");
+        oracleAddress = _oracleAddress;
+    }
+    
+    // ============ User Functions ============
+    
+    /**
+     * @dev Join ImpactQuest - creates user profile
+     */
+    function joinImpactQuest() external {
+        require(!userProfiles[msg.sender].isActive, "User already registered");
+        
+        userProfiles[msg.sender] = UserProfile({
+            level: UserLevel.None,
+            totalImpactScore: 0,
+            questsCompleted: 0,
+            lastQuestTimestamp: 0,
+            joinedTimestamp: block.timestamp,
+            isActive: true
+        });
+        
+        emit UserJoined(msg.sender, block.timestamp);
+    }
+    
+    /**
+     * @dev Complete a quest (called by Oracle after AI verification)
+     * @param user The user who completed the quest
+     * @param questId The ID of the completed quest
+     * @param proofHash Hash of the verification proof (image + AI response)
+     */
+    function completeQuest(
+        address user,
+        uint256 questId,
+        bytes32 proofHash
+    ) external onlyOracle questExists(questId) questActive(questId) nonReentrant {
+        require(userProfiles[user].isActive, "User not registered");
+        require(!usedProofHashes[proofHash], "Proof already used");
+        require(proofHash != bytes32(0), "Invalid proof hash");
+        
+        Quest memory quest = quests[questId];
+        
+        // Check cooldown period
+        uint256 lastCompletion = lastQuestCompletionTime[user][questId];
+        require(
+            block.timestamp >= lastCompletion + quest.cooldownPeriod,
+            "Quest cooldown not expired"
+        );
+        
+        // Mark proof as used
+        usedProofHashes[proofHash] = true;
+        
+        // Update user profile
+        UserProfile storage profile = userProfiles[user];
+        UserLevel oldLevel = profile.level;
+        
+        profile.totalImpactScore += quest.impactScore;
+        profile.questsCompleted += 1;
+        profile.lastQuestTimestamp = block.timestamp;
+        
+        // Update last completion time
+        lastQuestCompletionTime[user][questId] = block.timestamp;
+        
+        // Record completion
+        completionHistory.push(QuestCompletion({
+            questId: questId,
+            user: user,
+            timestamp: block.timestamp,
+            proofHash: proofHash,
+            rewardAmount: quest.rewardAmount,
+            verified: true
+        }));
+        
+        // Mint reward tokens
+        _mint(user, quest.rewardAmount);
+        
+        // Check for level up
+        UserLevel newLevel = _calculateLevel(profile.totalImpactScore);
+        if (newLevel != oldLevel) {
+            profile.level = newLevel;
+            emit LevelUp(user, oldLevel, newLevel, block.timestamp);
+        }
+        
+        emit QuestCompleted(
+            user,
+            questId,
+            block.timestamp,
+            proofHash,
+            quest.rewardAmount
+        );
+    }
+    
+    /**
+     * @dev Get user's current profile
+     */
+    function getUserProfile(address user) external view returns (
+        UserLevel level,
+        uint256 totalImpactScore,
+        uint256 questsCompleted,
+        uint256 lastQuestTimestamp,
+        uint256 joinedTimestamp,
+        bool isActive
+    ) {
+        UserProfile memory profile = userProfiles[user];
+        return (
+            profile.level,
+            profile.totalImpactScore,
+            profile.questsCompleted,
+            profile.lastQuestTimestamp,
+            profile.joinedTimestamp,
+            profile.isActive
+        );
+    }
+    
+    /**
+     * @dev Get user's level name as string
+     */
+    function getUserLevelName(address user) external view returns (string memory) {
+        UserLevel level = userProfiles[user].level;
+        if (level == UserLevel.Tree) return "Tree";
+        if (level == UserLevel.Sapling) return "Sapling";
+        if (level == UserLevel.Sprout) return "Sprout";
+        if (level == UserLevel.Seedling) return "Seedling";
+        return "None";
+    }
+    
+    /**
+     * @dev Check if user can complete a specific quest (respects cooldown)
+     */
+    function canCompleteQuest(address user, uint256 questId) external view returns (bool) {
+        if (!userProfiles[user].isActive) return false;
+        if (!quests[questId].isActive) return false;
+        
+        uint256 lastCompletion = lastQuestCompletionTime[user][questId];
+        uint256 cooldown = quests[questId].cooldownPeriod;
+        
+        return block.timestamp >= lastCompletion + cooldown;
+    }
+    
+    /**
+     * @dev Get total number of quest completions
+     */
+    function getTotalCompletions() external view returns (uint256) {
+        return completionHistory.length;
+    }
+    
+    /**
+     * @dev Get completion details by index
+     */
+    function getCompletion(uint256 index) external view returns (
+        uint256 questId,
+        address user,
+        uint256 timestamp,
+        bytes32 proofHash,
+        uint256 rewardAmount,
+        bool verified
+    ) {
+        require(index < completionHistory.length, "Index out of bounds");
+        QuestCompletion memory completion = completionHistory[index];
+        return (
+            completion.questId,
+            completion.user,
+            completion.timestamp,
+            completion.proofHash,
+            completion.rewardAmount,
+            completion.verified
+        );
+    }
+    
+    // ============ Quest Management (Owner Only) ============
+    
+    /**
+     * @dev Create a new quest
+     */
+    function createQuest(
+        string memory name,
+        string memory description,
+        uint256 rewardAmount,
+        uint256 impactScore,
+        uint256 cooldownPeriod,
+        QuestCategory category
+    ) external onlyOwner returns (uint256) {
+        require(bytes(name).length > 0, "Quest name required");
+        require(rewardAmount > 0, "Reward must be positive");
+        require(impactScore > 0, "Impact score must be positive");
+        
+        uint256 questId = nextQuestId++;
+        
+        quests[questId] = Quest({
+            id: questId,
+            name: name,
+            description: description,
+            rewardAmount: rewardAmount,
+            impactScore: impactScore,
+            isActive: true,
+            cooldownPeriod: cooldownPeriod,
+            category: category
+        });
+        
+        // Add to category mapping for filtering
+        questsByCategory[category].push(questId);
+        
+        emit QuestCreated(questId, name, rewardAmount, impactScore);
+        return questId;
+    }
+    
+    /**
+     * @dev Update quest active status
+     */
+    function setQuestActive(uint256 questId, bool isActive) external onlyOwner questExists(questId) {
+        quests[questId].isActive = isActive;
+        emit QuestUpdated(questId, isActive);
+    }
+    
+    /**
+     * @dev Get quest details
+     */
+    function getQuest(uint256 questId) external view returns (
+        uint256 id,
+        string memory name,
+        string memory description,
+        uint256 rewardAmount,
+        uint256 impactScore,
+        bool isActive,
+        uint256 cooldownPeriod,
+        QuestCategory category
+    ) {
+        Quest memory quest = quests[questId];
+        return (
+            quest.id,
+            quest.name,
+            quest.description,
+            quest.rewardAmount,
+            quest.impactScore,
+            quest.isActive,
+            quest.cooldownPeriod,
+            quest.category
+        );
+    }
+    
+    // ============ Category Filtering ============
+    
+    /**
+     * @dev Get all quest IDs in a specific category
+     */
+    function getQuestsByCategory(QuestCategory category) 
+        external view returns (uint256[] memory) 
+    {
+        return questsByCategory[category];
+    }
+    
+    /**
+     * @dev Get only active quests in a specific category
+     */
+    function getActiveQuestsByCategory(QuestCategory category) 
+        external view returns (uint256[] memory) 
+    {
+        uint256[] memory allQuests = questsByCategory[category];
+        
+        // Count active quests first
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < allQuests.length; i++) {
+            if (quests[allQuests[i]].isActive) {
+                activeCount++;
+            }
+        }
+        
+        // Create result array with only active quests
+        uint256[] memory activeQuests = new uint256[](activeCount);
+        uint256 currentIndex = 0;
+        
+        for (uint256 i = 0; i < allQuests.length; i++) {
+            if (quests[allQuests[i]].isActive) {
+                activeQuests[currentIndex] = allQuests[i];
+                currentIndex++;
+            }
+        }
+        
+        return activeQuests;
+    }
+    
+    /**
+     * @dev Get category name as string
+     */
+    function getCategoryName(QuestCategory category) external pure returns (string memory) {
+        if (category == QuestCategory.Environmental) return "Environmental";
+        if (category == QuestCategory.CommunityService) return "Community Service";
+        if (category == QuestCategory.Education) return "Education";
+        if (category == QuestCategory.WasteReduction) return "Waste Reduction";
+        if (category == QuestCategory.Sustainability) return "Sustainability";
+        return "Unknown";
+    }
+    
+    /**
+     * @dev Get user's quest count by category
+     */
+    function getUserQuestsByCategory(address user, QuestCategory category) 
+        external view returns (uint256 count) 
+    {
+        uint256[] memory categoryQuests = questsByCategory[category];
+        count = 0;
+        
+        for (uint256 i = 0; i < completionHistory.length; i++) {
+            if (completionHistory[i].user == user) {
+                // Check if this quest belongs to the category
+                for (uint256 j = 0; j < categoryQuests.length; j++) {
+                    if (completionHistory[i].questId == categoryQuests[j]) {
+                        count++;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        return count;
+    }
+    
+    // ============ Oracle Management ============
+    
+    /**
+     * @dev Update oracle address (only owner)
+     */
+    function setOracleAddress(address newOracle) external onlyOwner {
+        require(newOracle != address(0), "Invalid oracle address");
+        address oldOracle = oracleAddress;
+        oracleAddress = newOracle;
+        emit OracleAddressUpdated(oldOracle, newOracle);
+    }
+    
+    // ============ Internal Functions ============
+    
+    /**
+     * @dev Calculate user level based on impact score
+     */
+    function _calculateLevel(uint256 impactScore) internal pure returns (UserLevel) {
+        if (impactScore >= TREE_THRESHOLD) return UserLevel.Tree;
+        if (impactScore >= SAPLING_THRESHOLD) return UserLevel.Sapling;
+        if (impactScore >= SPROUT_THRESHOLD) return UserLevel.Sprout;
+        if (impactScore >= SEEDLING_THRESHOLD) return UserLevel.Seedling;
+        return UserLevel.None;
+    }
+    
+    /**
+     * @dev Override transfer to make tokens soulbound (non-transferable) - Optional
+     * Comment out these functions if you want tokens to be transferable
+     */
+    /*
+    function transfer(address, uint256) public pure override returns (bool) {
+        revert("IMP tokens are soulbound and non-transferable");
+    }
+    
+    function transferFrom(address, address, uint256) public pure override returns (bool) {
+        revert("IMP tokens are soulbound and non-transferable");
+    }
+    */
+}
