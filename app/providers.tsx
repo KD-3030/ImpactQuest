@@ -26,6 +26,21 @@ const config = getDefaultConfig({
   ssr: true,
 });
 
+// Suppress WalletConnect warning in development
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  const originalWarn = console.warn;
+  console.warn = (...args: any[]) => {
+    // Suppress specific WalletConnect warnings
+    if (
+      args[0]?.includes?.('Reown Config') ||
+      args[0]?.includes?.('WalletConnect Core is already initialized')
+    ) {
+      return;
+    }
+    originalWarn.apply(console, args);
+  };
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   // Create QueryClient inside component to avoid recreation on every render
   const [queryClient] = useState(() => new QueryClient({

@@ -18,7 +18,9 @@ import {
   Plus,
   CheckCircle,
   Sparkles,
-  Home
+  Home,
+  Gift,
+  Award
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -37,14 +39,18 @@ const adminNavItems: NavItem[] = [
   { label: 'Manage Quests', href: '/admin/quests', icon: Map },
   { label: 'Create Quest', href: '/admin/create-quest', icon: Plus },
   { label: 'Submissions', href: '/admin/submissions', icon: CheckCircle },
+  { label: 'Rewards', href: '/admin/rewards', icon: Award },
+  { label: 'Redemptions', href: '/admin/redemptions', icon: Gift },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
 const userNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Browse Quests', href: '/dashboard/quests', icon: Map },
+  { label: 'Quest Hub', href: '/quest-hub', icon: Map },
+  { label: 'Browse Quests', href: '/dashboard/quests', icon: Sparkles },
   { label: 'My Garden', href: '/dashboard/garden', icon: Sprout },
   { label: 'My Submissions', href: '/dashboard/submissions', icon: FileText },
+  { label: 'Rewards', href: '/dashboard/rewards', icon: Award },
 ];
 
 export default function Sidebar({ role }: SidebarProps) {

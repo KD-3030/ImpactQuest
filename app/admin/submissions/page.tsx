@@ -43,6 +43,13 @@ export default function AdminSubmissions() {
 
   useEffect(() => {
     fetchSubmissions();
+    
+    // Set up auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchSubmissions();
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, [filter]);
 
   const fetchSubmissions = async () => {

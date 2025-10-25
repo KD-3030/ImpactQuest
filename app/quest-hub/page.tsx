@@ -6,9 +6,9 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { MapPin, Award, User, Search, Filter, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import {
   Container,
+  PageHeader,
   Card,
   CardBody,
   Button,
@@ -135,36 +135,21 @@ export default function QuestHub() {
   }
 
   return (
-    <div className="min-h-screen bg-[#100720]">
-      {/* Header */}
-      <motion.header
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        className="bg-[#31087B]/50 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b-2 border-[#FA2FB5]/30"
-      >
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <motion.h1
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="text-2xl font-bold bg-gradient-to-r from-[#FA2FB5] to-[#FFC23C] bg-clip-text text-transparent"
-            >
-              Quest Hub
-            </motion.h1>
-            <ConnectButton />
-          </div>
-        </div>
-      </motion.header>
+    <div className="min-h-screen">
+      <Container className="py-6">
+        <PageHeader
+          title="Quest Hub"
+          description="Discover and complete environmental quests near you"
+        />
 
-      {/* Tabs */}
-      <div className="bg-[#31087B]/30 backdrop-blur-md border-b border-[#FA2FB5]/20">
-        <Container>
-          <div className="flex gap-1">
+        {/* Tabs */}
+        <div className="bg-[#31087B]/30 backdrop-blur-md rounded-lg border border-[#FA2FB5]/20 mb-6">
+          <div className="flex gap-1 p-1">
             <button
               onClick={() => setActiveTab('quests')}
-              className={`px-6 py-3 font-medium transition-all ${
+              className={`px-6 py-3 font-medium rounded-lg transition-all ${
                 activeTab === 'quests'
-                  ? 'text-[#FA2FB5] border-b-2 border-[#FA2FB5]'
+                  ? 'bg-[#FA2FB5] text-white'
                   : 'text-gray-400 hover:text-[#FA2FB5]'
               }`}
             >
@@ -173,9 +158,9 @@ export default function QuestHub() {
             </button>
             <button
               onClick={() => setActiveTab('garden')}
-              className={`px-6 py-3 font-medium transition-all ${
+              className={`px-6 py-3 font-medium rounded-lg transition-all ${
                 activeTab === 'garden'
-                  ? 'text-[#FA2FB5] border-b-2 border-[#FA2FB5]'
+                  ? 'bg-[#FA2FB5] text-white'
                   : 'text-gray-400 hover:text-[#FA2FB5]'
               }`}
             >
@@ -183,11 +168,9 @@ export default function QuestHub() {
               My Garden
             </button>
           </div>
-        </Container>
-      </div>
+        </div>
 
-      {/* Content */}
-      <Container className="py-6">
+        {/* Content */}
         {activeTab === 'quests' && (
           <>
             {/* Filters */}
