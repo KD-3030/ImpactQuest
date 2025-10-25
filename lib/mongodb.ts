@@ -29,7 +29,26 @@ async function dbConnect() {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
+    cached.promise = mongoose.connect(MONGODB_URI!, opts).then(async (mongoose) => {
+      console.log('✅ MongoDB connected successfully');
+      
+      // Initialize change streams if supported
+      if (process.env.NODE_ENV === 'production' || process.env.ENABLE_CHANGE_STREAMS === 'true') {
+        try {
+          const { initializeChangeStreams, supportsChangeStreams } = await import('./changeStreams');
+          const supported = await supportsChangeStreams();
+          
+          if (supported) {
+            await initializeChangeStreams();
+          } else {
+            console.warn('⚠️ MongoDB change streams not supported (requires replica set)');
+            console.warn('📡 Using manual event emission in API routes');
+          }
+        } catch (error) {
+          console.error('Failed to initialize change streams:', error);
+        }
+      }
+      
       return mongoose;
     });
   }

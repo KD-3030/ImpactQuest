@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Quest } from '@/models';
+import realtimeManager, { REALTIME_EVENTS } from '@/lib/realtime';
 
 export async function GET(request: NextRequest) {
   try {
@@ -69,6 +70,12 @@ export async function POST(request: NextRequest) {
       category,
       impactPoints,
       verificationPrompt,
+    });
+
+    // Emit real-time event for quest creation
+    realtimeManager.emit(REALTIME_EVENTS.QUEST_CREATED, {
+      quest: quest.toObject(),
+      timestamp: Date.now(),
     });
 
     return NextResponse.json({
