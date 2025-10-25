@@ -2,7 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Trash2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import {
+  Container,
+  PageHeader,
+  Card,
+  CardBody,
+  Button,
+  Input,
+  Textarea,
+  Select,
+  LoadingSpinner,
+} from '@/components/ui';
 
 interface Quest {
   _id: string;
@@ -16,6 +28,7 @@ interface Quest {
   impactPoints: number;
   verificationPrompt: string;
   isActive: boolean;
+  blockchainQuestId?: number;
 }
 
 export default function EditQuest({ params }: { params: { id: string } }) {
@@ -28,7 +41,7 @@ export default function EditQuest({ params }: { params: { id: string } }) {
     title: '',
     description: '',
     category: 'cleanup',
-    impactPoints: 50,
+    impactPoints: '',
     address: '',
     latitude: '',
     longitude: '',
@@ -52,7 +65,7 @@ export default function EditQuest({ params }: { params: { id: string } }) {
           title: q.title,
           description: q.description,
           category: q.category,
-          impactPoints: q.impactPoints,
+          impactPoints: q.impactPoints.toString(),
           address: q.location.address,
           latitude: q.location.coordinates[1].toString(),
           longitude: q.location.coordinates[0].toString(),
@@ -107,245 +120,267 @@ export default function EditQuest({ params }: { params: { id: string } }) {
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this quest? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/quests/${params.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        alert('Quest deleted successfully!');
+        router.push('/admin/quests');
+      } else {
+        alert('Failed to delete quest');
+      }
+    } catch (error) {
+      console.error('Error deleting quest:', error);
+      alert('An error occurred while deleting the quest');
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const categoryOptions = [
+    { value: 'cleanup', label: 'Cleanup' },
+    { value: 'planting', label: 'Planting' },
+    { value: 'recycling', label: 'Recycling' },
+    { value: 'education', label: 'Education' },
+    { value: 'other', label: 'Other' },
+  ];
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading quest...</p>
-        </div>
-      </div>
+      <Container>
+        <Card>
+          <CardBody className="py-12 text-center">
+            <LoadingSpinner size="lg" color="primary" label="Loading quest..." />
+          </CardBody>
+        </Card>
+      </Container>
     );
   }
 
   if (!quest) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">Quest not found</p>
-          <button
-            onClick={() => router.push('/admin/quests')}
-            className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700"
-          >
-            Back to Quests
-          </button>
-        </div>
-      </div>
+      <Container>
+        <Card>
+          <CardBody className="py-12 text-center">
+            <p className="text-gray-300 mb-4">Quest not found</p>
+            <Button variant="primary" onClick={() => router.push('/admin/quests')}>
+              Back to Quests
+            </Button>
+          </CardBody>
+        </Card>
+      </Container>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => router.push('/admin/quests')}
-          className="p-2 hover:bg-gray-100 rounded-lg"
+    <Container>
+      <PageHeader
+        title="Edit Quest"
+        description="Update quest details and settings"
+        backButton={
+          <Button
+            variant="outline"
+            size="sm"
+            icon={ArrowLeft}
+            onClick={() => router.push('/admin/quests')}
+          >
+            Back
+          </Button>
+        }
+        action={
+          <Button
+            variant="danger"
+            icon={Trash2}
+            onClick={handleDelete}
+          >
+            Delete Quest
+          </Button>
+        }
+      />
+
+      <div className="max-w-3xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
         >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">Edit Quest</h1>
-          <p className="text-gray-600 mt-1">Update quest details and settings</p>
-        </div>
-      </div>
+          <Card>
+            <CardBody>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Active Status Toggle */}
+                <div className="bg-[#31087B]/20 p-4 rounded-lg border border-[#FA2FB5]/30">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <div>
+                      <span className="font-medium text-white">Quest Active Status</span>
+                      <p className="text-sm text-gray-400">Enable or disable this quest for users</p>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        checked={formData.isActive}
+                        onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-white/20 rounded-full peer peer-checked:bg-gradient-to-r peer-checked:from-[#FA2FB5] peer-checked:to-[#FFC23C] peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                    </div>
+                  </label>
+                </div>
 
-      {/* Form */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Active Status Toggle */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <label className="flex items-center justify-between cursor-pointer">
-              <div>
-                <span className="font-medium text-gray-900">Quest Active Status</span>
-                <p className="text-sm text-gray-600">Enable or disable this quest for users</p>
-              </div>
-              <div className="relative">
-                <input
-                  type="checkbox"
-                  checked={formData.isActive}
-                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                  className="sr-only peer"
+                {/* Title */}
+                <Input
+                  label="Quest Title"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleChange}
+                  required
+                  placeholder="e.g., Beach Cleanup at Marina"
                 />
-                <div className="w-11 h-6 bg-gray-300 rounded-full peer peer-checked:bg-purple-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
-              </div>
-            </label>
-          </div>
 
-          {/* Quest Title */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Quest Title *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              placeholder="e.g., Beach Cleanup at Marina"
-            />
-          </div>
+                {/* Description */}
+                <Textarea
+                  label="Description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  required
+                  rows={4}
+                  placeholder="Describe what users need to do..."
+                />
 
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description *
-            </label>
-            <textarea
-              required
-              rows={4}
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              placeholder="Describe what users need to do..."
-            />
-          </div>
+                {/* Category & Impact Points */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <Select
+                    label="Category"
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    required
+                    options={categoryOptions}
+                  />
 
-          {/* Category and Points */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category *
-              </label>
-              <select
-                required
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                <option value="cleanup">Cleanup</option>
-                <option value="planting">Planting</option>
-                <option value="recycling">Recycling</option>
-                <option value="education">Education</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
+                  <Input
+                    label="Impact Points"
+                    name="impactPoints"
+                    type="number"
+                    value={formData.impactPoints}
+                    onChange={handleChange}
+                    required
+                    min="1"
+                    placeholder="50"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Impact Points *
-              </label>
-              <input
-                type="number"
-                required
-                min="1"
-                value={formData.impactPoints}
-                onChange={(e) => setFormData({ ...formData, impactPoints: Number(e.target.value) })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-            </div>
-          </div>
+                {/* Location */}
+                <div>
+                  <Input
+                    label="Location Address"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    required
+                    placeholder="e.g., Juhu Beach, Mumbai, Maharashtra"
+                    helperText="Enter the full address of the quest location"
+                  />
+                  
+                  <div className="grid md:grid-cols-2 gap-3 mt-3">
+                    <Input
+                      label="Latitude"
+                      name="latitude"
+                      type="number"
+                      value={formData.latitude}
+                      onChange={handleChange}
+                      required
+                      step="any"
+                      placeholder="19.0896"
+                    />
+                    <Input
+                      label="Longitude"
+                      name="longitude"
+                      type="number"
+                      value={formData.longitude}
+                      onChange={handleChange}
+                      required
+                      step="any"
+                      placeholder="72.8263"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-400 mt-2">
+                    💡 Tip: Get coordinates from{' '}
+                    <a 
+                      href="https://www.google.com/maps" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-[#FA2FB5] hover:text-[#FFC23C] transition-colors"
+                    >
+                      Google Maps
+                    </a>
+                  </p>
+                </div>
 
-          {/* Location */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Location Address *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              placeholder="e.g., Juhu Beach, Mumbai, Maharashtra"
-            />
-          </div>
+                {/* Verification Prompt */}
+                <Textarea
+                  label="AI Verification Prompt"
+                  name="verificationPrompt"
+                  value={formData.verificationPrompt}
+                  onChange={handleChange}
+                  required
+                  rows={3}
+                  placeholder="Describe what should be visible in the photo..."
+                  helperText="This helps the AI verify that users actually completed the quest"
+                />
 
-          {/* Coordinates */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Latitude *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.latitude}
-                onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="19.0760"
-              />
-            </div>
+                {/* Blockchain Info */}
+                {quest.blockchainQuestId && (
+                  <div className="bg-[#FFC23C]/10 border border-[#FFC23C]/30 rounded-lg p-4">
+                    <p className="text-sm text-gray-300">
+                      <span className="font-semibold text-[#FFC23C]">Blockchain Quest ID:</span> #{quest.blockchainQuestId}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      This quest is linked to the smart contract
+                    </p>
+                  </div>
+                )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Longitude *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.longitude}
-                onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="72.8777"
-              />
-            </div>
-          </div>
-
-          <div className="bg-blue-50 border-l-4 border-blue-500 p-4">
-            <p className="text-sm text-blue-800">
-              💡 <strong>Tip:</strong> Get coordinates from{' '}
-              <a
-                href="https://www.google.com/maps"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-blue-900"
-              >
-                Google Maps
-              </a>
-              . Right-click a location and copy the coordinates.
-            </p>
-          </div>
-
-          {/* AI Verification Prompt */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              AI Verification Prompt *
-            </label>
-            <textarea
-              required
-              rows={3}
-              value={formData.verificationPrompt}
-              onChange={(e) => setFormData({ ...formData, verificationPrompt: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              placeholder="Describe what should be visible in the photo for AI verification..."
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              This helps the AI verify that users actually completed the quest
-            </p>
-          </div>
-
-          {/* Submit Button */}
-          <div className="flex gap-4 pt-4">
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 bg-purple-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                <>
-                  <Save className="w-5 h-5" />
-                  Update Quest
-                </>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push('/admin/quests')}
-              disabled={saving}
-              className="px-8 py-3 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+                {/* Submit Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    icon={Save}
+                    loading={saving}
+                    fullWidth
+                  >
+                    {saving ? 'Updating...' : 'Update Quest'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    onClick={() => router.push('/admin/quests')}
+                    disabled={saving}
+                    className="sm:w-auto"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardBody>
+          </Card>
+        </motion.div>
       </div>
-    </div>
+    </Container>
   );
 }

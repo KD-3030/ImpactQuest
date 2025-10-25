@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Edit, Trash2, Plus, MapPin, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Edit, Trash2, Plus, MapPin, ToggleLeft, ToggleRight, Search } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Container, PageHeader, Card, CardBody, Button, Badge, Input, LoadingSpinner } from '@/components/ui';
 
 interface Quest {
   _id: string;
@@ -15,6 +17,7 @@ interface Quest {
   category: string;
   impactPoints: number;
   isActive: boolean;
+  blockchainQuestId?: number;
   createdAt: string;
 }
 
@@ -23,6 +26,7 @@ export default function ManageQuests() {
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchQuests();
@@ -81,160 +85,265 @@ export default function ManageQuests() {
   };
 
   const filteredQuests = quests.filter(q => {
-    if (filter === 'active') return q.isActive;
-    if (filter === 'inactive') return !q.isActive;
-    return true;
+    const matchesFilter = filter === 'all' ? true : filter === 'active' ? q.isActive : !q.isActive;
+    const matchesSearch = searchQuery === '' || 
+      q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      q.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      q.category.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesFilter && matchesSearch;
   });
 
+  const getCategoryColor = (category: string) => {
+    const colors: Record<string, string> = {
+      cleanup: 'primary',
+      planting: 'success',
+      recycling: 'info',
+      education: 'secondary',
+      other: 'warning',
+    };
+    return colors[category] || 'primary';
+  };
+
   return (
-    <div className="p-6 lg:p-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Manage Quests</h1>
-          <p className="text-gray-600">View, edit, and manage all environmental quests</p>
-        </div>
-        <button
-          onClick={() => router.push('/admin/create-quest')}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Create New Quest
-        </button>
-      </div>
+    <Container>
+      <PageHeader
+        title="Manage Quests"
+        description="View, edit, and manage all environmental quests"
+        action={
+          <Button
+            variant="primary"
+            icon={Plus}
+            onClick={() => router.push('/admin/create-quest')}
+          >
+            Create New Quest
+          </Button>
+        }
+      />
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'all'
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            All ({quests.length})
-          </button>
-          <button
-            onClick={() => setFilter('active')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'active'
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Active ({quests.filter(q => q.isActive).length})
-          </button>
-          <button
-            onClick={() => setFilter('inactive')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              filter === 'inactive'
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Inactive ({quests.filter(q => !q.isActive).length})
-          </button>
-        </div>
-      </div>
+      <Card className="mb-6">
+        <CardBody>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                variant={filter === 'all' ? 'primary' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('all')}
+              >
+                All ({quests.length})
+              </Button>
+              <Button
+                variant={filter === 'active' ? 'success' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('active')}
+              >
+                Active ({quests.filter(q => q.isActive).length})
+              </Button>
+              <Button
+                variant={filter === 'inactive' ? 'outline' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('inactive')}
+              >
+                Inactive ({quests.filter(q => !q.isActive).length})
+              </Button>
+            </div>
+            <div className="flex-1">
+              <Input
+                placeholder="Search quests..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="max-w-md"
+              />
+            </div>
+          </div>
+        </CardBody>
+      </Card>
 
-      {/* Quests Table */}
+      {/* Quests List */}
       {loading ? (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading quests...</p>
-        </div>
+        <Card>
+          <CardBody className="text-center py-12">
+            <LoadingSpinner size="lg" color="primary" label="Loading quests..." />
+          </CardBody>
+        </Card>
       ) : filteredQuests.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-md p-12 text-center">
-          <p className="text-gray-600 mb-4">No quests found</p>
-          <button
-            onClick={() => router.push('/admin/create-quest')}
-            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-          >
-            Create Your First Quest
-          </button>
-        </div>
+        <Card>
+          <CardBody className="text-center py-12">
+            <p className="text-gray-300 mb-4">
+              {searchQuery ? 'No quests match your search' : 'No quests found'}
+            </p>
+            <Button
+              variant="primary"
+              onClick={() => router.push('/admin/create-quest')}
+            >
+              Create Your First Quest
+            </Button>
+          </CardBody>
+        </Card>
       ) : (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Quest</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Category</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Points</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Location</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Status</th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filteredQuests.map((quest) => (
-                  <tr key={quest._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="font-medium text-gray-800">{quest.title}</div>
-                        <div className="text-sm text-gray-500 line-clamp-1">{quest.description}</div>
+        <>
+          {/* Desktop Table View */}
+          <div className="hidden lg:block">
+            <Card>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="border-b border-white/10">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Quest</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Category</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Points</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Location</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-300">Status</th>
+                      <th className="px-6 py-4 text-right text-sm font-semibold text-gray-300">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {filteredQuests.map((quest, index) => (
+                      <motion.tr
+                        key={quest._id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="hover:bg-white/5 transition-colors"
+                      >
+                        <td className="px-6 py-4">
+                          <div>
+                            <div className="font-medium text-white">{quest.title}</div>
+                            <div className="text-sm text-gray-400 line-clamp-1">{quest.description}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <Badge variant={getCategoryColor(quest.category) as any} size="sm">
+                            {quest.category}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="font-medium text-[#FFC23C]">+{quest.impactPoints}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1 text-sm text-gray-300">
+                            <MapPin className="w-4 h-4 flex-shrink-0" />
+                            <span className="line-clamp-1">{quest.location.address}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => handleToggleActive(quest._id, quest.isActive)}
+                            className="flex items-center gap-2 transition-colors"
+                          >
+                            {quest.isActive ? (
+                              <>
+                                <ToggleRight className="w-6 h-6 text-green-500" />
+                                <span className="text-green-500 font-medium">Active</span>
+                              </>
+                            ) : (
+                              <>
+                                <ToggleLeft className="w-6 h-6 text-gray-500" />
+                                <span className="text-gray-500">Inactive</span>
+                              </>
+                            )}
+                          </button>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => router.push(`/admin/edit-quest/${quest._id}`)}
+                              className="p-2 text-[#FA2FB5] hover:bg-[#FA2FB5]/10 rounded-lg transition-colors"
+                              title="Edit"
+                            >
+                              <Edit className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(quest._id)}
+                              className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="lg:hidden space-y-4">
+            {filteredQuests.map((quest, index) => (
+              <motion.div
+                key={quest._id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Card hover>
+                  <CardBody>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-white mb-1">{quest.title}</h3>
+                        <p className="text-sm text-gray-400 line-clamp-2">{quest.description}</p>
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-block bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-medium capitalize">
-                        {quest.category}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="font-medium text-green-600">+{quest.impactPoints}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1 text-sm text-gray-600">
-                        <MapPin className="w-4 h-4" />
-                        <span className="line-clamp-1">{quest.location.address}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
                       <button
                         onClick={() => handleToggleActive(quest._id, quest.isActive)}
-                        className="flex items-center gap-2"
+                        className="ml-2 flex-shrink-0"
                       >
                         {quest.isActive ? (
-                          <>
-                            <ToggleRight className="w-6 h-6 text-green-600" />
-                            <span className="text-green-600 font-medium">Active</span>
-                          </>
+                          <ToggleRight className="w-6 h-6 text-green-500" />
                         ) : (
-                          <>
-                            <ToggleLeft className="w-6 h-6 text-gray-400" />
-                            <span className="text-gray-500">Inactive</span>
-                          </>
+                          <ToggleLeft className="w-6 h-6 text-gray-500" />
                         )}
                       </button>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => router.push(`/admin/edit-quest/${quest._id}`)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Edit className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(quest._id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-3 flex-wrap">
+                      <Badge variant={getCategoryColor(quest.category) as any} size="sm">
+                        {quest.category}
+                      </Badge>
+                      <Badge variant="primary" size="sm">
+                        +{quest.impactPoints} pts
+                      </Badge>
+                      {quest.blockchainQuestId && (
+                        <Badge variant="success" size="sm">
+                          On-Chain #{quest.blockchainQuestId}
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 text-sm text-gray-400 mb-4">
+                      <MapPin className="w-4 h-4" />
+                      <span className="line-clamp-1">{quest.location.address}</span>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon={Edit}
+                        onClick={() => router.push(`/admin/edit-quest/${quest._id}`)}
+                        fullWidth
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        icon={Trash2}
+                        onClick={() => handleDelete(quest._id)}
+                        fullWidth
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </CardBody>
+                </Card>
+              </motion.div>
+            ))}
           </div>
-        </div>
+        </>
       )}
-    </div>
+    </Container>
   );
 }

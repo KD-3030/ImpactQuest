@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount } from 'wagmi';
 import { 
   Map, 
   Users, 
@@ -10,6 +9,7 @@ import {
   Clock,
   AlertCircle
 } from 'lucide-react';
+import { Container, PageHeader, Card, CardBody, CardTitle, CardDescription, Grid, Button } from '@/components/ui';
 
 interface DashboardStats {
   totalQuests: number;
@@ -21,7 +21,6 @@ interface DashboardStats {
 }
 
 export default function AdminDashboard() {
-  const { address } = useAccount();
   const [stats, setStats] = useState<DashboardStats>({
     totalQuests: 0,
     activeQuests: 0,
@@ -38,15 +37,12 @@ export default function AdminDashboard() {
 
   const fetchDashboardStats = async () => {
     try {
-      // Fetch quests
       const questsRes = await fetch('/api/quests');
       const questsData = await questsRes.json();
       
-      // Fetch submissions (we'll create this endpoint)
       const submissionsRes = await fetch('/api/admin/submissions');
       const submissionsData = await submissionsRes.json();
       
-      // Fetch users stats (we'll create this endpoint)
       const usersRes = await fetch('/api/admin/users');
       const usersData = await usersRes.json();
 
@@ -70,171 +66,158 @@ export default function AdminDashboard() {
       title: 'Total Quests',
       value: stats.totalQuests,
       icon: Map,
-      color: 'bg-blue-100 text-blue-600',
-      bgColor: 'bg-blue-50',
     },
     {
       title: 'Active Quests',
       value: stats.activeQuests,
       icon: CheckCircle,
-      color: 'bg-green-100 text-green-600',
-      bgColor: 'bg-green-50',
     },
     {
       title: 'Total Users',
       value: stats.totalUsers,
       icon: Users,
-      color: 'bg-purple-100 text-purple-600',
-      bgColor: 'bg-purple-50',
     },
     {
       title: 'Pending Reviews',
       value: stats.pendingSubmissions,
       icon: Clock,
-      color: 'bg-yellow-100 text-yellow-600',
-      bgColor: 'bg-yellow-50',
     },
     {
       title: 'Approved Submissions',
       value: stats.approvedSubmissions,
       icon: CheckCircle,
-      color: 'bg-emerald-100 text-emerald-600',
-      bgColor: 'bg-emerald-50',
     },
     {
       title: 'Total Impact Points',
       value: stats.totalImpactPoints.toLocaleString(),
       icon: TrendingUp,
-      color: 'bg-orange-100 text-orange-600',
-      bgColor: 'bg-orange-50',
     },
   ];
 
   return (
-    <div className="p-6 lg:p-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">
-          Quest Master Dashboard
-        </h1>
-        <p className="text-gray-300">
-          Welcome back! Here's an overview of your impact platform.
-        </p>
-      </div>
+    <Container>
+      <PageHeader
+        title="Quest Master Dashboard"
+        description="Welcome back! Here's an overview of your impact platform."
+      />
 
       {/* Stats Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Grid cols={3} gap={6}>
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-6 animate-pulse border-2 border-[#FA2FB5]/30">
-              <div className="h-4 bg-white/20 rounded w-1/2 mb-4"></div>
-              <div className="h-8 bg-white/20 rounded w-1/3"></div>
-            </div>
+            <Card key={i}>
+              <CardBody>
+                <div className="h-4 bg-white/20 rounded w-1/2 mb-4 animate-pulse"></div>
+                <div className="h-8 bg-white/20 rounded w-1/3 animate-pulse"></div>
+              </CardBody>
+            </Card>
           ))}
-        </div>
+        </Grid>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <Grid cols={3} gap={6} className="mb-8">
           {statCards.map((card, index) => {
             const Icon = card.icon;
             return (
-              <div key={index} className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-6 hover:shadow-2xl transition-all border-2 border-[#FA2FB5]/30 hover:border-[#FA2FB5]">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="p-3 rounded-lg bg-gradient-to-br from-[#FA2FB5]/20 to-[#FFC23C]/20">
-                    <Icon className="w-6 h-6 text-[#FFC23C]" />
+              <Card key={index} hover>
+                <CardBody>
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 rounded-lg bg-gradient-to-br from-[#FA2FB5]/20 to-[#FFC23C]/20">
+                      <Icon className="w-6 h-6 text-[#FFC23C]" />
+                    </div>
                   </div>
-                </div>
-                <h3 className="text-gray-300 text-sm font-medium mb-1">
-                  {card.title}
-                </h3>
-                <p className="text-3xl font-bold text-white">
-                  {card.value}
-                </p>
-              </div>
+                  <h3 className="text-gray-300 text-sm font-medium mb-1">
+                    {card.title}
+                  </h3>
+                  <p className="text-3xl font-bold text-white">
+                    {card.value}
+                  </p>
+                </CardBody>
+              </Card>
             );
           })}
-        </div>
+        </Grid>
       )}
 
-      {/* Quick Actions */}
-      <div className="grid lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-6 border-2 border-[#FA2FB5]/30">
-          <h2 className="text-xl font-bold text-white mb-4">Quick Actions</h2>
-          <div className="space-y-3">
-            <a
-              href="/admin/create-quest"
-              className="block w-full px-4 py-3 bg-gradient-to-r from-[#FA2FB5] to-[#FFC23C] hover:from-[#FFC23C] hover:to-[#FA2FB5] text-white rounded-lg text-center font-medium transition-all shadow-lg"
-            >
-              Create New Quest
-            </a>
-            <a
-              href="/admin/submissions"
-              className="block w-full px-4 py-3 bg-gradient-to-r from-[#31087B] to-[#FA2FB5] hover:from-[#FA2FB5] hover:to-[#31087B] text-white rounded-lg text-center font-medium transition-all shadow-lg"
-            >
-              Review Pending Submissions
-            </a>
-            <a
-              href="/admin/quests"
-              className="block w-full px-4 py-3 bg-gradient-to-r from-[#100720] to-[#31087B] hover:from-[#31087B] hover:to-[#100720] text-white rounded-lg text-center font-medium transition-all shadow-lg"
-            >
-              Manage All Quests
-            </a>
-          </div>
-        </div>
+      {/* Quick Actions & Platform Status */}
+      <Grid cols={2} gap={6}>
+        <Card>
+          <CardBody>
+            <CardTitle className="mb-4">Quick Actions</CardTitle>
+            <div className="space-y-3">
+              <a href="/admin/create-quest">
+                <Button variant="primary" fullWidth>
+                  Create New Quest
+                </Button>
+              </a>
+              <a href="/admin/submissions">
+                <Button variant="secondary" fullWidth>
+                  Review Pending Submissions
+                </Button>
+              </a>
+              <a href="/admin/quests">
+                <Button variant="outline" fullWidth>
+                  Manage All Quests
+                </Button>
+              </a>
+            </div>
+          </CardBody>
+        </Card>
 
-        {/* Recent Activity */}
-        <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-6 border-2 border-[#FA2FB5]/30">
-          <h2 className="text-xl font-bold text-white mb-4">Platform Status</h2>
-          <div className="space-y-4">
-            {stats.pendingSubmissions > 0 ? (
-              <div className="flex items-start gap-3 p-3 bg-[#FFC23C]/20 rounded-lg border border-[#FFC23C]/50">
-                <AlertCircle className="w-5 h-5 text-[#FFC23C] mt-0.5" />
+        <Card>
+          <CardBody>
+            <CardTitle className="mb-4">Platform Status</CardTitle>
+            <div className="space-y-4">
+              {stats.pendingSubmissions > 0 ? (
+                <div className="flex items-start gap-3 p-3 bg-[#FFC23C]/20 rounded-lg border border-[#FFC23C]/50">
+                  <AlertCircle className="w-5 h-5 text-[#FFC23C] mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-white">
+                      {stats.pendingSubmissions} submission{stats.pendingSubmissions !== 1 ? 's' : ''} awaiting review
+                    </p>
+                    <p className="text-sm text-gray-300">
+                      Review submissions to help users earn their rewards
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3 p-3 bg-[#FA2FB5]/20 rounded-lg border border-[#FA2FB5]/50">
+                  <CheckCircle className="w-5 h-5 text-[#FA2FB5] mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-white">All caught up!</p>
+                    <p className="text-sm text-gray-300">
+                      No pending submissions to review
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-start gap-3 p-3 bg-[#31087B]/40 rounded-lg border border-[#FA2FB5]/30">
+                <Map className="w-5 h-5 text-[#FFC23C] mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="font-medium text-white">
-                    {stats.pendingSubmissions} submission{stats.pendingSubmissions !== 1 ? 's' : ''} awaiting review
+                    {stats.activeQuests} active quest{stats.activeQuests !== 1 ? 's' : ''}
                   </p>
                   <p className="text-sm text-gray-300">
-                    Review submissions to help users earn their rewards
+                    Keep your quests updated and engaging
                   </p>
                 </div>
               </div>
-            ) : (
-              <div className="flex items-start gap-3 p-3 bg-[#FA2FB5]/20 rounded-lg border border-[#FA2FB5]/50">
-                <CheckCircle className="w-5 h-5 text-[#FA2FB5] mt-0.5" />
+
+              <div className="flex items-start gap-3 p-3 bg-[#31087B]/40 rounded-lg border border-[#FA2FB5]/30">
+                <Users className="w-5 h-5 text-[#FFC23C] mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="font-medium text-white">All caught up!</p>
+                  <p className="font-medium text-white">
+                    {stats.totalUsers} registered user{stats.totalUsers !== 1 ? 's' : ''}
+                  </p>
                   <p className="text-sm text-gray-300">
-                    No pending submissions to review
+                    Growing community of impact makers
                   </p>
                 </div>
               </div>
-            )}
-
-            <div className="flex items-start gap-3 p-3 bg-[#31087B]/40 rounded-lg border border-[#FA2FB5]/30">
-              <Map className="w-5 h-5 text-[#FFC23C] mt-0.5" />
-              <div>
-                <p className="font-medium text-white">
-                  {stats.activeQuests} active quest{stats.activeQuests !== 1 ? 's' : ''}
-                </p>
-                <p className="text-sm text-gray-300">
-                  Keep your quests updated and engaging
-                </p>
-              </div>
             </div>
-
-            <div className="flex items-start gap-3 p-3 bg-[#31087B]/40 rounded-lg border border-[#FA2FB5]/30">
-              <Users className="w-5 h-5 text-[#FFC23C] mt-0.5" />
-              <div>
-                <p className="font-medium text-white">
-                  {stats.totalUsers} registered user{stats.totalUsers !== 1 ? 's' : ''}
-                </p>
-                <p className="text-sm text-gray-300">
-                  Growing community of impact makers
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+          </CardBody>
+        </Card>
+      </Grid>
+    </Container>
   );
 }

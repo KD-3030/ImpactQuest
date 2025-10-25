@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAuth } from '@/lib/auth-context';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, 
   Map, 
@@ -15,7 +16,9 @@ import {
   Shield,
   Users,
   Plus,
-  CheckCircle
+  CheckCircle,
+  Sparkles,
+  Home
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -57,31 +60,67 @@ export default function Sidebar({ role }: SidebarProps) {
     router.push('/');
   };
 
+  const handleBackToHome = () => {
+    router.push('/');
+  };
+
   const isActive = (href: string) => pathname === href;
 
   return (
     <>
       {/* Mobile Menu Button */}
-      <button
+      <motion.button
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        whileTap={{ scale: 0.9 }}
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-gradient-to-r from-[#FA2FB5] to-[#FFC23C] rounded-lg shadow-2xl"
+        className="lg:hidden fixed top-4 left-4 z-50 p-3 bg-gradient-to-r from-[#FA2FB5] to-[#FFC23C] rounded-lg shadow-2xl"
       >
-        {isMobileMenuOpen ? <X className="w-6 h-6 text-white" /> : <Menu className="w-6 h-6 text-white" />}
-      </button>
+        <AnimatePresence mode="wait">
+          {isMobileMenuOpen ? (
+            <motion.div
+              key="close"
+              initial={{ rotate: -90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: 90, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <X className="w-6 h-6 text-white" />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="menu"
+              initial={{ rotate: 90, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              exit={{ rotate: -90, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Menu className="w-6 h-6 text-white" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.button>
 
       {/* Overlay for mobile */}
-      {isMobileMenuOpen && (
-        <div
-          onClick={() => setIsMobileMenuOpen(false)}
-          className="lg:hidden fixed inset-0 bg-black/70 z-40 backdrop-blur-sm"
-        />
-      )}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="lg:hidden fixed inset-0 bg-black/70 z-40 backdrop-blur-sm"
+          />
+        )}
+      </AnimatePresence>
 
       {/* Sidebar */}
-      <aside
+      <motion.aside
+        initial={{ x: -300 }}
+        animate={{ x: isMobileMenuOpen || window.innerWidth >= 1024 ? 0 : -300 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className={`
-          fixed top-0 left-0 h-screen bg-gradient-to-b from-[#100720] via-[#31087B] to-[#100720] shadow-2xl z-40 transition-transform duration-300 border-r-2 border-[#FA2FB5]/30
-          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          fixed top-0 left-0 h-screen bg-gradient-to-b from-[#100720] via-[#31087B] to-[#100720] shadow-2xl z-40 border-r-2 border-[#FA2FB5]/30
           w-64 flex flex-col
         `}
       >
@@ -115,29 +154,52 @@ export default function Sidebar({ role }: SidebarProps) {
         {/* Navigation */}
         <nav className="flex-1 p-4 overflow-y-auto">
           <ul className="space-y-2">
-            {navItems.map((item) => {
+            {navItems.map((item, index) => {
               const Icon = item.icon;
               const active = isActive(item.href);
               
               return (
-                <li key={item.href}>
-                  <button
+                <motion.li
+                  key={item.href}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <motion.button
+                    whileHover={{ scale: 1.02, x: 4 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => {
                       router.push(item.href);
                       setIsMobileMenuOpen(false);
                     }}
                     className={`
-                      w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all shadow-lg
+                      w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all shadow-lg relative overflow-hidden
                       ${active 
                         ? 'bg-gradient-to-r from-[#FA2FB5] to-[#FFC23C] text-white font-medium' 
                         : 'text-gray-300 hover:bg-white/10 hover:text-white border-2 border-[#FA2FB5]/20 hover:border-[#FA2FB5]/50'
                       }
                     `}
                   >
-                    <Icon className="w-5 h-5" />
-                    <span>{item.label}</span>
-                  </button>
-                </li>
+                    {active && (
+                      <motion.div
+                        layoutId="activeTab"
+                        className="absolute inset-0 bg-gradient-to-r from-[#FA2FB5] to-[#FFC23C]"
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      />
+                    )}
+                    <Icon className="w-5 h-5 relative z-10" />
+                    <span className="relative z-10">{item.label}</span>
+                    {active && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="ml-auto relative z-10"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                      </motion.div>
+                    )}
+                  </motion.button>
+                </motion.li>
               );
             })}
           </ul>
@@ -150,6 +212,14 @@ export default function Sidebar({ role }: SidebarProps) {
           </div>
           
           <button
+            onClick={handleBackToHome}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-[#FFC23C] hover:bg-[#FFC23C]/20 transition-all border-2 border-[#FFC23C]/30 hover:border-[#FFC23C]"
+          >
+            <Home className="w-5 h-5" />
+            <span>Back to Home</span>
+          </button>
+          
+          <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-[#FA2FB5] hover:bg-[#FA2FB5]/20 transition-all border-2 border-[#FA2FB5]/30 hover:border-[#FA2FB5]"
           >
@@ -157,7 +227,7 @@ export default function Sidebar({ role }: SidebarProps) {
             <span>Logout</span>
           </button>
         </div>
-      </aside>
+      </motion.aside>
     </>
   );
 }

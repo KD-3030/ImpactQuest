@@ -4,13 +4,28 @@ import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { MapPin, Award, User, ArrowLeft } from 'lucide-react';
+import { MapPin, Award, User, Search, Filter, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import {
+  Container,
+  Card,
+  CardBody,
+  Button,
+  Badge,
+  Input,
+  LoadingSpinner,
+  CircularProgress,
+} from '@/components/ui';
 
 // Dynamic import for map to avoid SSR issues
 const QuestMap = dynamic(() => import('@/components/QuestMap'), {
   ssr: false,
-  loading: () => <div className="h-full flex items-center justify-center">Loading map...</div>,
+  loading: () => (
+    <div className="h-full flex items-center justify-center bg-[#31087B]/20">
+      <LoadingSpinner size="md" color="primary" label="Loading map..." />
+    </div>
+  ),
 });
 
 interface Quest {
@@ -32,6 +47,8 @@ export default function QuestHub() {
   const [activeTab, setActiveTab] = useState<'quests' | 'garden'>('quests');
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [userStats, setUserStats] = useState({
     level: 1,
     totalImpactPoints: 0,
@@ -56,7 +73,7 @@ export default function QuestHub() {
     try {
       const response = await fetch('/api/quests');
       const data = await response.json();
-      setQuests(data.quests || []);
+      setQuests(data.quests?.filter((q: Quest) => q !== null) || []);
     } catch (error) {
       console.error('Error fetching quests:', error);
     } finally {
@@ -80,38 +97,75 @@ export default function QuestHub() {
     router.push(`/quest/${questId}`);
   };
 
+  const categories = ['all', 'cleanup', 'planting', 'recycling', 'education', 'other'];
+
+  const filteredQuests = quests.filter(quest => {
+    const matchesCategory = selectedCategory === 'all' || quest.category === selectedCategory;
+    const matchesSearch = searchQuery === '' || 
+      quest.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      quest.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const getCategoryColor = (category: string) => {
+    const colors: Record<string, 'primary' | 'success' | 'secondary' | 'warning'> = {
+      cleanup: 'primary',
+      planting: 'success',
+      recycling: 'secondary',
+      education: 'warning',
+      other: 'primary',
+    };
+    return colors[category] || 'primary';
+  };
+
+  const getStageInfo = (stage: string) => {
+    const stages: Record<string, { icon: string; title: string; color: 'primary' | 'success' | 'warning' | 'secondary' }> = {
+      seedling: { icon: '🌱', title: 'Seedling', color: 'success' },
+      sprout: { icon: '🌿', title: 'Sprout', color: 'success' },
+      tree: { icon: '🌳', title: 'Tree', color: 'primary' },
+      forest: { icon: '🌲', title: 'Forest', color: 'warning' },
+    };
+    return stages[stage] || stages.seedling;
+  };
+
+  const stageInfo = getStageInfo(userStats.stage);
+
   if (!isConnected) {
     return null;
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#100720]">
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push('/')}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+      <motion.header
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        className="bg-[#31087B]/50 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b-2 border-[#FA2FB5]/30"
+      >
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex justify-between items-center">
+            <motion.h1
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="text-2xl font-bold bg-gradient-to-r from-[#FA2FB5] to-[#FFC23C] bg-clip-text text-transparent"
             >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <h1 className="text-2xl font-bold text-green-600">Quest Hub</h1>
+              Quest Hub
+            </motion.h1>
+            <ConnectButton />
           </div>
-          <ConnectButton />
         </div>
-      </header>
+      </motion.header>
 
       {/* Tabs */}
-      <div className="bg-white border-b">
-        <div className="container mx-auto px-4">
+      <div className="bg-[#31087B]/30 backdrop-blur-md border-b border-[#FA2FB5]/20">
+        <Container>
           <div className="flex gap-1">
             <button
               onClick={() => setActiveTab('quests')}
-              className={`px-6 py-3 font-medium transition-colors ${
+              className={`px-6 py-3 font-medium transition-all ${
                 activeTab === 'quests'
-                  ? 'text-green-600 border-b-2 border-green-600'
-                  : 'text-gray-600 hover:text-green-600'
+                  ? 'text-[#FA2FB5] border-b-2 border-[#FA2FB5]'
+                  : 'text-gray-400 hover:text-[#FA2FB5]'
               }`}
             >
               <MapPin className="w-4 h-4 inline mr-2" />
@@ -119,153 +173,293 @@ export default function QuestHub() {
             </button>
             <button
               onClick={() => setActiveTab('garden')}
-              className={`px-6 py-3 font-medium transition-colors ${
+              className={`px-6 py-3 font-medium transition-all ${
                 activeTab === 'garden'
-                  ? 'text-green-600 border-b-2 border-green-600'
-                  : 'text-gray-600 hover:text-green-600'
+                  ? 'text-[#FA2FB5] border-b-2 border-[#FA2FB5]'
+                  : 'text-gray-400 hover:text-[#FA2FB5]'
               }`}
             >
               <User className="w-4 h-4 inline mr-2" />
               My Garden
             </button>
           </div>
-        </div>
+        </Container>
       </div>
 
       {/* Content */}
-      <div className="container mx-auto px-4 py-6">
+      <Container className="py-6">
         {activeTab === 'quests' && (
-          <div className="grid lg:grid-cols-2 gap-6 h-[calc(100vh-200px)]">
-            {/* Quest List */}
-            <div className="bg-white rounded-lg shadow-md p-4 overflow-y-auto">
-              <h2 className="text-xl font-bold mb-4 text-gray-800">Available Quests</h2>
-              {loading ? (
-                <div className="text-center py-8 text-gray-500">Loading quests...</div>
-              ) : quests.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No quests available yet. Check back soon!
+          <>
+            {/* Filters */}
+            <div className="mb-6 space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Input
+                    placeholder="Search quests..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {quests.map((quest) => (
-                    <div
-                      key={quest._id}
-                      onClick={() => handleQuestClick(quest._id)}
-                      className="border rounded-lg p-4 hover:shadow-lg transition-shadow cursor-pointer"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-bold text-lg text-gray-800">{quest.title}</h3>
-                        <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
-                          +{quest.impactPoints} pts
-                        </span>
-                      </div>
-                      <p className="text-gray-600 text-sm mb-2">{quest.description}</p>
-                      <div className="flex items-center text-gray-500 text-sm">
-                        <MapPin className="w-4 h-4 mr-1" />
-                        {quest.location.address}
-                      </div>
-                      <div className="mt-2">
-                        <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
-                          {quest.category}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <Filter className="w-5 h-5 text-[#FA2FB5] flex-shrink-0" />
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="flex-1 bg-[#31087B]/30 border border-[#FA2FB5]/30 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-[#FA2FB5] transition-all capitalize"
+                  >
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat} className="bg-[#100720] capitalize">
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {categories.map((cat) => (
+                  <Button
+                    key={cat}
+                    variant={selectedCategory === cat ? 'primary' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedCategory(cat)}
+                    className="capitalize"
+                  >
+                    {cat}
+                  </Button>
+                ))}
+              </div>
             </div>
 
-            {/* Map */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <QuestMap quests={quests} onQuestClick={handleQuestClick} />
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* Quest List */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-white">Available Quests</h2>
+                  <Badge variant="primary">{filteredQuests.length}</Badge>
+                </div>
+                
+                {loading ? (
+                  <Card>
+                    <CardBody className="py-12 text-center">
+                      <LoadingSpinner size="lg" color="primary" label="Loading quests..." />
+                    </CardBody>
+                  </Card>
+                ) : filteredQuests.length === 0 ? (
+                  <Card>
+                    <CardBody className="py-12 text-center">
+                      <p className="text-gray-400 mb-4">No quests found</p>
+                      <Button
+                        variant="primary"
+                        onClick={() => {
+                          setSelectedCategory('all');
+                          setSearchQuery('');
+                        }}
+                      >
+                        Clear Filters
+                      </Button>
+                    </CardBody>
+                  </Card>
+                ) : (
+                  <div className="space-y-4 max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
+                    {filteredQuests.map((quest, index) => (
+                      <motion.div
+                        key={quest._id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        onClick={() => handleQuestClick(quest._id)}
+                        className="cursor-pointer"
+                      >
+                        <Card hover>
+                          <CardBody>
+                            <div className="flex justify-between items-start mb-3">
+                              <h3 className="font-bold text-lg text-white flex-1">
+                                {quest.title}
+                              </h3>
+                              <div className="flex items-center gap-1 bg-gradient-to-r from-[#FA2FB5] to-[#FFC23C] text-white px-3 py-1 rounded-full text-sm font-bold whitespace-nowrap ml-3">
+                                <Award className="w-4 h-4" />
+                                {quest.impactPoints}
+                              </div>
+                            </div>
+                            
+                            <p className="text-gray-300 text-sm mb-3 line-clamp-2">
+                              {quest.description}
+                            </p>
+                            
+                            <div className="flex items-center text-gray-400 text-sm mb-3">
+                              <MapPin className="w-4 h-4 mr-1 text-[#FFC23C] flex-shrink-0" />
+                              <span className="line-clamp-1">{quest.location.address}</span>
+                            </div>
+                            
+                            <Badge variant={getCategoryColor(quest.category)} className="capitalize">
+                              {quest.category}
+                            </Badge>
+                          </CardBody>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Map */}
+              <div className="lg:sticky lg:top-24 h-[500px] lg:h-[calc(100vh-180px)]">
+                <Card className="h-full">
+                  <CardBody className="p-0 h-full">
+                    <QuestMap quests={filteredQuests} onQuestClick={handleQuestClick} />
+                  </CardBody>
+                </Card>
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         {activeTab === 'garden' && (
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-white rounded-lg shadow-md p-8">
-              <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">
-                🌱 My Impact Garden
-              </h2>
-              
-              {/* Stats Grid */}
-              <div className="grid md:grid-cols-4 gap-6 mb-8">
-                <div className="text-center">
-                  <div className="text-4xl font-bold text-green-600">{userStats.level}</div>
-                  <div className="text-gray-600 mt-1">Level</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-4xl font-bold text-green-600">{userStats.totalImpactPoints}</div>
-                  <div className="text-gray-600 mt-1">Impact Points</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-4xl font-bold text-green-600">{userStats.completedQuests}</div>
-                  <div className="text-gray-600 mt-1">Quests Done</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-4xl">
-                    {userStats.stage === 'seedling' && '🌱'}
-                    {userStats.stage === 'sprout' && '🌿'}
-                    {userStats.stage === 'tree' && '🌳'}
-                    {userStats.stage === 'forest' && '🌲'}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-4xl mx-auto"
+          >
+            <Card className="mb-6 bg-gradient-to-br from-[#31087B] to-[#100720] border-2 border-[#FA2FB5]/50">
+              <CardBody className="text-center py-12">
+                <motion.div
+                  animate={{
+                    scale: [1, 1.1, 1],
+                    rotate: [0, 5, -5, 0],
+                  }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                  className="inline-block mb-6"
+                >
+                  <div className="text-8xl filter drop-shadow-lg">
+                    {stageInfo.icon}
                   </div>
-                  <div className="text-gray-600 mt-1 capitalize">{userStats.stage}</div>
-                </div>
-              </div>
+                </motion.div>
+                
+                <h2 className="text-4xl font-bold text-white mb-3">
+                  {stageInfo.title}
+                </h2>
+                <Badge variant={stageInfo.color} className="text-base px-4 py-2">
+                  My Current Stage
+                </Badge>
+              </CardBody>
+            </Card>
 
-              {/* Progression */}
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6">
-                <h3 className="font-bold text-lg mb-4 text-gray-800">Your Growth Journey</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-4">
-                    <span className="text-2xl">🌱</span>
-                    <div className="flex-1">
-                      <div className="font-medium">Seedling (0-100 pts)</div>
-                      <div className="text-sm text-gray-600">Just starting your impact journey</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-2xl">🌿</span>
-                    <div className="flex-1">
-                      <div className="font-medium">Sprout (100-300 pts)</div>
-                      <div className="text-sm text-gray-600">Growing your green footprint</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-2xl">🌳</span>
-                    <div className="flex-1">
-                      <div className="font-medium">Tree (300-600 pts)</div>
-                      <div className="text-sm text-gray-600">Making substantial impact</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-2xl">🌲</span>
-                    <div className="flex-1">
-                      <div className="font-medium">Forest (600+ pts)</div>
-                      <div className="text-sm text-gray-600">Champion of environmental action</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {userStats.completedQuests === 0 && (
-                <div className="mt-8 text-center p-6 bg-blue-50 rounded-lg">
-                  <Award className="w-12 h-12 text-blue-500 mx-auto mb-3" />
-                  <h3 className="font-bold text-lg mb-2">Ready to make your first impact?</h3>
-                  <p className="text-gray-600 mb-4">Complete your first quest to start growing your garden!</p>
-                  <button
-                    onClick={() => setActiveTab('quests')}
-                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg"
-                  >
-                    Browse Quests
-                  </button>
-                </div>
-              )}
+            {/* Stats Grid */}
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {[
+                { icon: Award, label: 'Level', value: userStats.level, color: 'warning' as const, progress: userStats.level * 10 },
+                { icon: Sparkles, label: 'Impact Points', value: userStats.totalImpactPoints, color: 'primary' as const, progress: Math.min(100, (userStats.totalImpactPoints / 600) * 100) },
+                { icon: MapPin, label: 'Quests Done', value: userStats.completedQuests, color: 'success' as const, progress: userStats.completedQuests * 10 },
+                { icon: User, label: 'Stage', value: stageInfo.title, color: stageInfo.color, progress: 100 },
+              ].map((stat, index) => (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card>
+                    <CardBody>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="p-3 bg-[#FA2FB5]/20 rounded-lg">
+                          <stat.icon className="w-6 h-6 text-[#FA2FB5]" />
+                        </div>
+                        <CircularProgress
+                          value={stat.progress}
+                          size="sm"
+                          color={stat.color}
+                        />
+                      </div>
+                      <p className="text-sm text-gray-400 mb-1">{stat.label}</p>
+                      <p className="text-2xl font-bold text-white">{stat.value}</p>
+                    </CardBody>
+                  </Card>
+                </motion.div>
+              ))}
             </div>
-          </div>
+
+            {/* Growth Journey */}
+            <Card>
+              <CardBody>
+                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                  <Award className="w-6 h-6 text-[#FA2FB5]" />
+                  Your Growth Journey
+                </h3>
+                
+                <div className="space-y-3">
+                  {[
+                    { stage: 'seedling', title: 'Seedling', range: '0-100 pts', desc: 'Just starting your impact journey', icon: '🌱' },
+                    { stage: 'sprout', title: 'Sprout', range: '100-300 pts', desc: 'Growing your green footprint', icon: '🌿' },
+                    { stage: 'tree', title: 'Tree', range: '300-600 pts', desc: 'Making substantial impact', icon: '🌳' },
+                    { stage: 'forest', title: 'Forest', range: '600+ pts', desc: 'Champion of environmental action', icon: '🌲' },
+                  ].map((item, index) => {
+                    const isCurrent = userStats.stage === item.stage;
+                    const isCompleted = ['seedling', 'sprout', 'tree', 'forest'].indexOf(userStats.stage) > index;
+                    
+                    return (
+                      <motion.div
+                        key={item.stage}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.5 + index * 0.1 }}
+                        className={`flex items-center gap-4 p-4 rounded-lg transition-all border-2 ${
+                          isCurrent
+                            ? 'bg-gradient-to-r from-[#FA2FB5]/20 to-[#31087B]/20 border-[#FA2FB5]'
+                            : isCompleted
+                            ? 'bg-[#31087B]/30 border-[#FFC23C]/30'
+                            : 'bg-[#100720]/50 border-[#31087B]'
+                        }`}
+                      >
+                        <div className="text-4xl">{item.icon}</div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-white">{item.title}</span>
+                            <Badge variant="secondary" className="text-xs">{item.range}</Badge>
+                            {isCurrent && <Badge variant="primary" className="text-xs">Current</Badge>}
+                            {isCompleted && <Badge variant="success" className="text-xs">✓</Badge>}
+                          </div>
+                          <p className="text-sm text-gray-300">{item.desc}</p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </CardBody>
+            </Card>
+
+            {userStats.completedQuests === 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1 }}
+                className="mt-6"
+              >
+                <Card className="bg-gradient-to-r from-[#31087B]/50 to-[#FA2FB5]/30 border-2 border-[#FA2FB5]">
+                  <CardBody className="text-center py-8">
+                    <Award className="w-16 h-16 text-[#FFC23C] mx-auto mb-4" />
+                    <h3 className="font-bold text-2xl mb-2 text-white">Ready to make your first impact?</h3>
+                    <p className="text-gray-300 mb-6">Complete your first quest to start growing your garden!</p>
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      onClick={() => setActiveTab('quests')}
+                    >
+                      Browse Quests
+                    </Button>
+                  </CardBody>
+                </Card>
+              </motion.div>
+            )}
+          </motion.div>
         )}
-      </div>
-    </main>
+      </Container>
+    </div>
   );
 }

@@ -26,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isConnected || !address) {
+      // Clear role when disconnected to prevent auto-redirect issues
       setRole(null);
       return;
     }
