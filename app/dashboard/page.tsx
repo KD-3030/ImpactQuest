@@ -30,12 +30,14 @@ export default function UserDashboard() {
     stage: 'seedling',
   });
   const [recentQuests, setRecentQuests] = useState<Quest[]>([]);
+  const [completedQuestIds, setCompletedQuestIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (address) {
       fetchUserData();
       fetchRecentQuests();
+      fetchCompletedQuests();
     }
   }, [address]);
 
@@ -60,6 +62,26 @@ export default function UserDashboard() {
       setRecentQuests(data.quests?.slice(0, 3) || []);
     } catch (error) {
       console.error('Error fetching quests:', error);
+    }
+  };
+
+  const fetchCompletedQuests = async () => {
+    if (!address) return;
+    
+    try {
+      const response = await fetch(`/api/submissions?walletAddress=${address}&verified=true`);
+      const data = await response.json();
+      
+      if (data.success && data.submissions) {
+        const completedIds = new Set<string>(
+          data.submissions.map((sub: any) => 
+            typeof sub.questId === 'string' ? sub.questId : sub.questId?._id?.toString()
+          ).filter(Boolean)
+        );
+        setCompletedQuestIds(completedIds);
+      }
+    } catch (error) {
+      console.error('Error fetching completed quests:', error);
     }
   };
 
@@ -198,13 +220,24 @@ export default function UserDashboard() {
                 <button
                   key={quest._id}
                   onClick={() => router.push(`/quest/${quest._id}`)}
-                  className="w-full p-4 bg-white/5 border-2 border-[#FA2FB5]/20 rounded-lg hover:border-[#FA2FB5] hover:bg-white/10 transition-all text-left shadow-lg"
+                  className={`w-full p-4 border-2 rounded-lg transition-all text-left shadow-lg ${
+                    completedQuestIds.has(quest._id)
+                      ? 'bg-white/5 border-green-500/50 opacity-70'
+                      : 'bg-white/5 border-[#FA2FB5]/20 hover:border-[#FA2FB5] hover:bg-white/10'
+                  }`}
                 >
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-bold text-white">{quest.title}</h3>
-                    <span className="bg-gradient-to-r from-[#FFC23C] to-[#FA2FB5] text-white px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2">
-                      +{quest.impactPoints} pts
-                    </span>
+                    <div className="flex gap-2 items-center ml-2">
+                      {completedQuestIds.has(quest._id) && (
+                        <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap">
+                          ✓ Done
+                        </span>
+                      )}
+                      <span className="bg-gradient-to-r from-[#FFC23C] to-[#FA2FB5] text-white px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap">
+                        +{quest.impactPoints} pts
+                      </span>
+                    </div>
                   </div>
                   <p className="text-sm text-gray-300 line-clamp-2">{quest.description}</p>
                   <div className="mt-2">

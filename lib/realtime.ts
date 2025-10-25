@@ -67,6 +67,7 @@ export const REALTIME_EVENTS = {
   QUEST_CREATED: 'quest:created',
   QUEST_UPDATED: 'quest:updated',
   QUEST_COMPLETED: 'quest:completed',
+  QUEST_ARCHIVED: 'quest:archived',
   USER_UPDATED: 'user:updated',
   SUBMISSION_CREATED: 'submission:created',
   SUBMISSION_VERIFIED: 'submission:verified',

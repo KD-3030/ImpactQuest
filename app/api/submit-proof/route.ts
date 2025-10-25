@@ -1,7 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
-import { User, Quest, Submission } from '@/models';
+import { User, Quest, Submission, CompletedQuest } from '@/models';
 import realtimeManager, { REALTIME_EVENTS } from '@/lib/realtime';
+
+// Helper function to archive completed quests
+async function archiveCompletedQuest(questId: string) {
+  try {
+    await dbConnect();
+    
+    const quest = await Quest.findById(questId);
+    if (!quest || quest.status !== 'completed') {
+      console.log(`Quest ${questId} not found or not in completed status`);
+      return;
+    }
+
+    // Get all users who completed this quest
+    const completions = await Submission.find({
+      questId: quest._id,
+      verified: true
+    }).select('walletAddress submittedAt impactPointsEarned');
+
+    // Create archived quest record
+    const archivedQuest = new CompletedQuest({
+      originalQuestId: quest._id,
+      title: quest.title,
+      description: quest.description,
+      category: quest.category,
+      impactPoints: quest.impactPoints,
+      totalCompletions: quest.completionCount,
+      completedBy: completions.map(c => ({
+        walletAddress: c.walletAddress,
+        completedAt: c.submittedAt,
+        pointsEarned: c.impactPointsEarned || quest.impactPoints
+      })),
+      questCompletedAt: quest.completedAt,
+      archivedAt: new Date(),
+      questCreatedAt: quest.createdAt
+    });
+
+    await archivedQuest.save();
+
+    // Update quest status to archived
+    quest.status = 'archived';
+    quest.archivedAt = new Date();
+    await quest.save();
+
+    // Emit real-time event for quest archiving
+    realtimeManager.emit(REALTIME_EVENTS.QUEST_ARCHIVED, {
+      quest: quest.toObject(),
+      archivedQuest: archivedQuest.toObject(),
+      timestamp: Date.now(),
+    });
+
+    console.log(`✅ Quest ${questId} archived successfully`);
+  } catch (error) {
+    console.error(`❌ Error archiving quest ${questId}:`, error);
+  }
+}
 
 // Mock AI verification function (replace with actual OpenAI Vision API later)
 async function verifyImageWithAI(imageData: string, verificationPrompt: string): Promise<boolean> {
@@ -109,6 +164,24 @@ export async function POST(request: NextRequest) {
       user.updatedAt = new Date();
       await user.save();
 
+      // Update quest completion count and status
+      quest.completionCount += 1;
+      
+      // Check if quest should be marked as completed
+      const shouldComplete = quest.maxCompletions && quest.completionCount >= quest.maxCompletions;
+      
+      if (shouldComplete) {
+        quest.status = 'completed';
+        quest.completedAt = new Date();
+        
+        // Schedule quest archiving after configured time
+        setTimeout(async () => {
+          await archiveCompletedQuest(quest._id.toString());
+        }, quest.autoArchiveAfter || 86400000); // Default 24 hours
+      }
+      
+      await quest.save();
+
       // Emit real-time events for verification and user update
       realtimeManager.emit(REALTIME_EVENTS.SUBMISSION_VERIFIED, {
         submission: submission.toObject(),
@@ -128,8 +201,19 @@ export async function POST(request: NextRequest) {
         questId: quest._id,
         walletAddress: walletAddress.toLowerCase(),
         pointsEarned: quest.impactPoints,
+        questStatus: quest.status,
+        completionCount: quest.completionCount,
+        maxCompletions: quest.maxCompletions,
         timestamp: Date.now(),
       });
+
+      // If quest is now completed, emit quest updated event
+      if (shouldComplete) {
+        realtimeManager.emit(REALTIME_EVENTS.QUEST_UPDATED, {
+          quest: quest.toObject(),
+          timestamp: Date.now(),
+        });
+      }
     }
 
     return NextResponse.json({

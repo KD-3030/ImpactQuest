@@ -31,6 +31,7 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showUploadOption, setShowUploadOption] = useState(false);
+  const [alreadyCompleted, setAlreadyCompleted] = useState(false);
   const [result, setResult] = useState<{
     success: boolean;
     verified: boolean;
@@ -40,10 +41,11 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     fetchQuest();
+    checkIfCompleted();
     return () => {
       stopCamera();
     };
-  }, [params.id]);
+  }, [params.id, address]);
 
   const fetchQuest = async () => {
     try {
@@ -58,6 +60,23 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
       setQuest(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkIfCompleted = async () => {
+    if (!address) return;
+    
+    try {
+      // Check if user has already completed this quest
+      const response = await fetch(`/api/submissions?walletAddress=${address}&questId=${params.id}`);
+      const data = await response.json();
+      
+      if (data.success && data.submissions?.length > 0) {
+        const completed = data.submissions.some((sub: any) => sub.verified);
+        setAlreadyCompleted(completed);
+      }
+    } catch (error) {
+      console.error('Error checking completion status:', error);
     }
   };
 
@@ -260,7 +279,21 @@ export default function QuestDetail({ params }: { params: { id: string } }) {
         <div className="bg-white rounded-lg shadow-xl p-6 border-2 border-[#FA2FB5]">
           <h3 className="text-xl font-bold text-[#100720] mb-4">Submit Your Proof</h3>
 
-          {!cameraActive && !capturedImage && (
+          {alreadyCompleted ? (
+            <div className="text-center py-12">
+              <CheckCircle className="w-20 h-20 text-[#FA2FB5] mx-auto mb-4" />
+              <h3 className="text-2xl font-bold text-[#100720] mb-2">Quest Already Completed! 🎉</h3>
+              <p className="text-gray-600 mb-6">
+                You've already completed this quest and earned your impact points.
+              </p>
+              <button
+                onClick={() => router.push('/dashboard/quests')}
+                className="bg-gradient-to-r from-[#FA2FB5] to-[#31087B] hover:from-[#31087B] hover:to-[#FA2FB5] text-white font-bold py-3 px-8 rounded-lg transition-all shadow-lg"
+              >
+                Browse More Quests
+              </button>
+            </div>
+          ) : !cameraActive && !capturedImage && (
             <div className="text-center py-12">
               <Camera className="w-16 h-16 text-[#FA2FB5] mx-auto mb-4" />
               <p className="text-gray-700 mb-6 font-medium">
