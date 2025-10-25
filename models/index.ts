@@ -90,6 +90,31 @@ const QuestSchema = new Schema({
     type: Boolean,
     default: true,
   },
+  status: {
+    type: String,
+    enum: ['active', 'completed', 'archived'],
+    default: 'active',
+  },
+  completionCount: {
+    type: Number,
+    default: 0,
+  },
+  maxCompletions: {
+    type: Number,
+    default: null, // null means unlimited
+  },
+  autoArchiveAfter: {
+    type: Number,
+    default: 86400000, // 24 hours in milliseconds (can be configured per quest)
+  },
+  completedAt: {
+    type: Date,
+    default: null,
+  },
+  archivedAt: {
+    type: Date,
+    default: null,
+  },
   blockchainQuestId: {
     type: Number,
     required: false, // Optional for backward compatibility
@@ -106,11 +131,6 @@ const QuestSchema = new Schema({
     type: Number,
     default: 0,
   },
-  // Total times this quest was completed
-  completionCount: {
-    type: Number,
-    default: 0,
-  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -118,6 +138,8 @@ const QuestSchema = new Schema({
 });
 
 QuestSchema.index({ location: '2dsphere' });
+QuestSchema.index({ status: 1 });
+QuestSchema.index({ completedAt: 1 });
 
 // Submission Schema
 const SubmissionSchema = new Schema({
@@ -161,6 +183,11 @@ const SubmissionSchema = new Schema({
     default: Date.now,
   },
 });
+
+// Add indexes for faster queries
+SubmissionSchema.index({ userId: 1, questId: 1 });
+SubmissionSchema.index({ walletAddress: 1, verified: 1 });
+SubmissionSchema.index({ questId: 1, verified: 1 });
 
 // Reward Transaction Schema
 const RewardTransactionSchema = new Schema({
@@ -307,6 +334,62 @@ const RedemptionSchema = new Schema({
   completedAt: Date,
 });
 
+// Completed Quest Schema - Stores archived quests that have been completed
+const CompletedQuestSchema = new Schema({
+  originalQuestId: {
+    type: Schema.Types.ObjectId,
+    required: true,
+  },
+  title: {
+    type: String,
+    required: true,
+  },
+  description: {
+    type: String,
+    required: true,
+  },
+  category: {
+    type: String,
+    required: true,
+  },
+  impactPoints: {
+    type: Number,
+    required: true,
+  },
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+    },
+    coordinates: [Number],
+    address: String,
+  },
+  totalCompletions: {
+    type: Number,
+    required: true,
+  },
+  completedBy: [{
+    walletAddress: String,
+    completedAt: Date,
+    pointsEarned: Number,
+  }],
+  questCompletedAt: {
+    type: Date,
+    required: true,
+  },
+  archivedAt: {
+    type: Date,
+    default: Date.now,
+  },
+  questCreatedAt: {
+    type: Date,
+    required: true,
+  },
+});
+
+CompletedQuestSchema.index({ archivedAt: -1 });
+CompletedQuestSchema.index({ category: 1 });
+
 // Export models
 export const User = models.User || mongoose.model('User', UserSchema);
 export const Quest = models.Quest || mongoose.model('Quest', QuestSchema);
@@ -314,3 +397,4 @@ export const Submission = models.Submission || mongoose.model('Submission', Subm
 export const RewardTransaction = models.RewardTransaction || mongoose.model('RewardTransaction', RewardTransactionSchema);
 export const LocalShop = models.LocalShop || mongoose.model('LocalShop', LocalShopSchema);
 export const Redemption = models.Redemption || mongoose.model('Redemption', RedemptionSchema);
+export const CompletedQuest = models.CompletedQuest || mongoose.model('CompletedQuest', CompletedQuestSchema);

@@ -13,7 +13,10 @@ export async function GET(request: NextRequest) {
     const lng = searchParams.get('lng');
     const radius = searchParams.get('radius') || '10000'; // 10km default
 
-    let query: any = { isActive: true };
+    let query: any = { 
+      isActive: true,
+      status: { $ne: 'archived' } // Exclude archived quests
+    };
 
     // If location provided, find nearby quests
     if (lat && lng) {
