@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
-import { Sprout, Target, Award, TrendingUp, Coins } from 'lucide-react';
+import { Sprout, Target, Award, TrendingUp, Coins, Gift, Store, Sparkles } from 'lucide-react';
 import { getUserProfile, getTokenBalance } from '@/lib/blockchain';
 
 interface UserStats {
@@ -11,6 +11,9 @@ interface UserStats {
   totalImpactPoints: number;
   completedQuests: number;
   stage: string;
+  rewardTokens?: number;
+  discountRate?: number;
+  totalRewardsEarned?: number;
 }
 
 interface BlockchainStats {
@@ -198,6 +201,62 @@ export default function UserDashboard() {
             <span className="text-gray-300">Quests Done</span>
           </div>
           <p className="text-3xl font-bold text-white">{userStats.completedQuests}</p>
+        </div>
+      </div>
+
+      {/* Rewards Card */}
+      <div className="bg-gradient-to-br from-[#FFC23C] via-[#FA2FB5] to-[#31087B] rounded-lg shadow-xl p-6 mb-8 border-2 border-[#FFC23C]/50 cursor-pointer hover:scale-[1.02] transition-transform"
+        onClick={() => router.push('/dashboard/rewards')}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+            <Gift className="w-7 h-7" />
+            Your Rewards
+          </h2>
+          <Sparkles className="w-6 h-6 text-white animate-pulse" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 border border-white/30">
+            <div className="flex items-center gap-2 mb-1">
+              <Coins className="w-5 h-5 text-white" />
+              <p className="text-sm text-white/90">Available Tokens</p>
+            </div>
+            <p className="text-3xl font-bold text-white">{userStats.rewardTokens || 0}</p>
+          </div>
+          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 border border-white/30">
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="w-5 h-5 text-white" />
+              <p className="text-sm text-white/90">Discount Rate</p>
+            </div>
+            <p className="text-3xl font-bold text-white">{userStats.discountRate || 10}%</p>
+          </div>
+          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 border border-white/30">
+            <div className="flex items-center gap-2 mb-1">
+              <Award className="w-5 h-5 text-white" />
+              <p className="text-sm text-white/90">Total Earned</p>
+            </div>
+            <p className="text-3xl font-bold text-white">{userStats.totalRewardsEarned || 0}</p>
+          </div>
+        </div>
+        <div className="mt-4 flex gap-3">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push('/dashboard/shops');
+            }}
+            className="flex-1 py-3 bg-white/30 hover:bg-white/40 backdrop-blur-sm rounded-lg font-bold text-white transition-colors flex items-center justify-center gap-2"
+          >
+            <Store className="w-5 h-5" />
+            Browse Shops
+          </button>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push('/dashboard/rewards');
+            }}
+            className="flex-1 py-3 bg-white/30 hover:bg-white/40 backdrop-blur-sm rounded-lg font-bold text-white transition-colors"
+          >
+            View Details →
+          </button>
         </div>
       </div>
 

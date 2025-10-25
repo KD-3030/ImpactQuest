@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, MapPin, Save } from 'lucide-react';
+import { useAccount } from 'wagmi';
+import { ArrowLeft, MapPin, Save, Gift, Info } from 'lucide-react';
 import { Container, PageHeader, Card, CardBody, Button, Input, Textarea, Select } from '@/components/ui';
 
 export default function CreateQuest() {
   const router = useRouter();
+  const { address } = useAccount();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -18,6 +20,13 @@ export default function CreateQuest() {
     impactPoints: '',
     verificationPrompt: '',
   });
+
+  // Calculate creator reward preview
+  const calculateCreatorReward = () => {
+    const points = parseInt(formData.impactPoints) || 0;
+    const rewardTokens = Math.max(1, Math.min(10, Math.ceil(points * 0.05)));
+    return rewardTokens;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +44,7 @@ export default function CreateQuest() {
           category: formData.category,
           impactPoints: parseInt(formData.impactPoints),
           verificationPrompt: formData.verificationPrompt,
+          creatorAddress: address, // Include creator wallet address
         }),
       });
 
@@ -132,6 +142,29 @@ export default function CreateQuest() {
                   placeholder="50"
                 />
               </div>
+
+              {/* Creator Reward Info */}
+              {formData.impactPoints && (
+                <div className="p-4 rounded-lg bg-gradient-to-r from-[#FA2FB5]/10 to-[#FFC23C]/10 border border-[#FA2FB5]/30">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-[#FFC23C]/20 rounded-lg">
+                      <Gift className="w-5 h-5 text-[#FFC23C]" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-white font-bold mb-1 flex items-center gap-2">
+                        Creator Reward Preview
+                        <Info className="w-4 h-4 text-gray-400" />
+                      </h4>
+                      <p className="text-gray-300 text-sm mb-2">
+                        You'll earn <span className="font-bold text-[#FFC23C]">{calculateCreatorReward()} tokens</span> each time someone completes this quest!
+                      </p>
+                      <p className="text-gray-400 text-xs">
+                        Creator rewards are 5% of quest points (min 1, max 10 tokens)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Location */}
               <div>

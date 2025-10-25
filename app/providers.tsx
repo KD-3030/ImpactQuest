@@ -16,6 +16,7 @@ import {
 } from "@tanstack/react-query";
 import { AuthProvider } from '@/lib/auth-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import RewardNotifications from '@/components/RewardNotifications';
 import { useState } from 'react';
 
 const config = getDefaultConfig({
@@ -45,6 +46,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             showRecentTransactions={false}
           >
             <AuthProvider>
+              <RewardNotifications />
               {children}
             </AuthProvider>
           </RainbowKitProvider>
