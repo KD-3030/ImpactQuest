@@ -13,12 +13,16 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    if (isConnected && role === 'admin') {
-      router.push('/admin/dashboard');
-    } else if (isConnected && role === 'user') {
-      router.push('/dashboard');
-    } else if (isConnected && !role) {
-      router.push('/login');
+    // Only redirect if explicitly connected, not on initial page load
+    // This prevents auto-redirect to last signed-in user page
+    if (isConnected) {
+      if (role === 'admin') {
+        router.push('/admin/dashboard');
+      } else if (role === 'user') {
+        router.push('/dashboard');
+      } else if (!role) {
+        router.push('/login');
+      }
     }
   }, [isConnected, role, router]);
 

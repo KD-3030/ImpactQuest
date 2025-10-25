@@ -75,6 +75,12 @@ const QuestSchema = new Schema({
     type: Boolean,
     default: true,
   },
+  blockchainQuestId: {
+    type: Number,
+    required: false, // Optional for backward compatibility
+    sparse: true,
+    unique: true, // Each blockchain quest ID should be unique
+  },
   createdAt: {
     type: Date,
     default: Date.now,

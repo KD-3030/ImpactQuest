@@ -3,13 +3,21 @@
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
-import { Sprout, Target, Award, TrendingUp } from 'lucide-react';
+import { Sprout, Target, Award, TrendingUp, Coins } from 'lucide-react';
+import { getUserProfile, getTokenBalance } from '@/lib/blockchain';
 
 interface UserStats {
   level: number;
   totalImpactPoints: number;
   completedQuests: number;
   stage: string;
+}
+
+interface BlockchainStats {
+  tokenBalance: string;
+  onChainLevel: string;
+  onChainScore: string;
+  questsCompleted: string;
 }
 
 interface Quest {
@@ -29,15 +37,47 @@ export default function UserDashboard() {
     completedQuests: 0,
     stage: 'seedling',
   });
+  const [blockchainStats, setBlockchainStats] = useState<BlockchainStats>({
+    tokenBalance: '0',
+    onChainLevel: 'Not registered',
+    onChainScore: '0',
+    questsCompleted: '0',
+  });
   const [recentQuests, setRecentQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (address) {
       fetchUserData();
+      fetchBlockchainData();
       fetchRecentQuests();
     }
   }, [address]);
+
+  const fetchBlockchainData = async () => {
+    if (!address) return;
+
+    try {
+      // Fetch on-chain user profile
+      const profile = await getUserProfile(address);
+      
+      // Fetch IMP token balance
+      const balance = await getTokenBalance(address);
+
+      if (profile) {
+        const levelNames = ['None', 'Seedling', 'Sprout', 'Sapling', 'Tree'];
+        setBlockchainStats({
+          tokenBalance: Number(balance).toFixed(2),
+          onChainLevel: levelNames[profile.level] || 'Not registered',
+          onChainScore: profile.totalImpactScore.toString(),
+          questsCompleted: profile.questsCompleted.toString(),
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching blockchain data:', error);
+      // Keep default values if blockchain fetch fails
+    }
+  };
 
   const fetchUserData = async () => {
     try {
@@ -136,6 +176,32 @@ export default function UserDashboard() {
             <span className="text-gray-300">Quests Done</span>
           </div>
           <p className="text-3xl font-bold text-white">{userStats.completedQuests}</p>
+        </div>
+      </div>
+
+      {/* Blockchain Stats */}
+      <div className="bg-gradient-to-br from-[#31087B] via-[#100720] to-[#31087B] rounded-lg shadow-xl p-6 mb-8 border-2 border-[#FFC23C]/30">
+        <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+          <Coins className="w-6 h-6 text-[#FFC23C]" />
+          Blockchain Stats (On-Chain Data)
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white/5 rounded-lg p-4 border border-[#FFC23C]/20">
+            <p className="text-sm text-gray-300 mb-1">IMP Token Balance</p>
+            <p className="text-2xl font-bold text-[#FFC23C]">{blockchainStats.tokenBalance}</p>
+          </div>
+          <div className="bg-white/5 rounded-lg p-4 border border-[#FA2FB5]/20">
+            <p className="text-sm text-gray-300 mb-1">On-Chain Level</p>
+            <p className="text-2xl font-bold text-[#FA2FB5]">{blockchainStats.onChainLevel}</p>
+          </div>
+          <div className="bg-white/5 rounded-lg p-4 border border-[#FFC23C]/20">
+            <p className="text-sm text-gray-300 mb-1">On-Chain Score</p>
+            <p className="text-2xl font-bold text-white">{blockchainStats.onChainScore}</p>
+          </div>
+          <div className="bg-white/5 rounded-lg p-4 border border-[#FA2FB5]/20">
+            <p className="text-sm text-gray-300 mb-1">Verified Quests</p>
+            <p className="text-2xl font-bold text-white">{blockchainStats.questsCompleted}</p>
+          </div>
         </div>
       </div>
 

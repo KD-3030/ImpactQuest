@@ -5,6 +5,19 @@ async function main() {
 
   // Get the deployer account
   const [deployer] = await hre.ethers.getSigners();
+  
+  // Check if deployer exists
+  if (!deployer) {
+    console.error("❌ ERROR: No deployer account found!");
+    console.error("\n🔧 Fix this by:");
+    console.error("   1. Make sure you have a PRIVATE_KEY in contracts/.env.local");
+    console.error("   2. Your PRIVATE_KEY should be 64 hex characters (without 0x prefix)");
+    console.error("   3. Get your private key from MetaMask: Account Details > Export Private Key");
+    console.error("   4. Example format: PRIVATE_KEY=abc123def456...");
+    console.error("\n⚠️  NEVER commit your private key to git!");
+    process.exit(1);
+  }
+  
   console.log("📝 Deploying with account:", deployer.address);
   
   const balance = await hre.ethers.provider.getBalance(deployer.address);

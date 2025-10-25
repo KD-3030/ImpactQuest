@@ -3,7 +3,18 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { MapPin, Filter } from 'lucide-react';
+import { MapPin, Filter, Search, Award } from 'lucide-react';
+import { motion } from 'framer-motion';
+import {
+  Container,
+  PageHeader,
+  Card,
+  CardBody,
+  Button,
+  Badge,
+  Input,
+  LoadingSpinner,
+} from '@/components/ui';
 
 // Dynamic import for map to avoid SSR issues
 const QuestMap = dynamic(() => import('@/components/QuestMap'), {
@@ -30,6 +41,7 @@ export default function BrowseQuests() {
   const [quests, setQuests] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchQuests();
@@ -53,98 +65,161 @@ export default function BrowseQuests() {
 
   const categories = ['all', 'cleanup', 'planting', 'recycling', 'education', 'other'];
   
-  const filteredQuests = selectedCategory === 'all' 
-    ? quests 
-    : quests.filter(q => q.category === selectedCategory);
+  const filteredQuests = quests.filter(quest => {
+    const matchesCategory = selectedCategory === 'all' || quest.category === selectedCategory;
+    const matchesSearch = searchQuery === '' || 
+      quest.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      quest.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      quest.location.address.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const getCategoryColor = (category: string) => {
+    const colors: Record<string, string> = {
+      cleanup: 'primary',
+      planting: 'success',
+      recycling: 'secondary',
+      education: 'warning',
+      other: 'primary',
+    };
+    return colors[category] || 'primary';
+  };
 
   return (
-    <div className="p-6 lg:p-8">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white mb-2">Browse Quests</h1>
-        <p className="text-gray-300">Find environmental challenges near you</p>
+    <Container>
+      <PageHeader
+        title="Browse Quests"
+        description="Discover environmental challenges and earn impact points"
+      />
+
+      {/* Search and Filters */}
+      <div className="grid md:grid-cols-2 gap-4 mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Input
+            placeholder="Search quests by title, description, or location..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="w-5 h-5 text-[#FA2FB5] flex-shrink-0" />
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="flex-1 bg-[#31087B]/30 border border-[#FA2FB5]/30 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-[#FA2FB5] transition-all capitalize"
+          >
+            {categories.map((cat) => (
+              <option key={cat} value={cat} className="bg-[#100720] capitalize">
+                {cat} {cat === 'all' && `(${quests.length})`}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* Category Filter */}
-      <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-4 mb-6 border-2 border-[#FA2FB5]/30">
-        <div className="flex items-center gap-3 mb-3">
-          <Filter className="w-5 h-5 text-[#FFC23C]" />
-          <span className="font-medium text-white">Filter by Category:</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-lg font-medium capitalize transition-all shadow-lg ${
-                selectedCategory === cat
-                  ? 'bg-gradient-to-r from-[#FA2FB5] to-[#FFC23C] text-white'
-                  : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-[#FA2FB5]/30'
-              }`}
+      {/* Category Pills */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {categories.map((cat) => (
+          <Button
+            key={cat}
+            variant={selectedCategory === cat ? 'primary' : 'outline'}
+            size="sm"
+            onClick={() => setSelectedCategory(cat)}
+            className="capitalize"
+          >
+            {cat}
+          </Button>
+        ))}
+      </div>
+
+      {/* Loading State */}
+      {loading ? (
+        <Card>
+          <CardBody className="py-12 text-center">
+            <LoadingSpinner size="lg" color="primary" label="Loading quests..." />
+          </CardBody>
+        </Card>
+      ) : filteredQuests.length === 0 ? (
+        <Card>
+          <CardBody className="py-12 text-center">
+            <p className="text-gray-400 mb-4">
+              {searchQuery ? 'No quests match your search' : 'No quests found in this category'}
+            </p>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setSelectedCategory('all');
+                setSearchQuery('');
+              }}
             >
-              {cat} {cat === 'all' && `(${quests.length})`}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Content Grid */}
-      <div className="grid lg:grid-cols-2 gap-6" style={{ height: 'calc(100vh - 320px)' }}>
-        {/* Quest List */}
-        <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl p-4 overflow-y-auto border-2 border-[#FA2FB5]/30">
-          <h2 className="text-xl font-bold mb-4 text-white">
-            Available Quests ({filteredQuests.length})
-          </h2>
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FA2FB5] mx-auto mb-4"></div>
-              <p className="text-gray-300">Loading quests...</p>
+              Clear Filters
+            </Button>
+          </CardBody>
+        </Card>
+      ) : (
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Quest List */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">
+                Available Quests
+              </h2>
+              <Badge variant="primary">{filteredQuests.length}</Badge>
             </div>
-          ) : filteredQuests.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              <p className="mb-2">No quests found in this category</p>
-              <button
-                onClick={() => setSelectedCategory('all')}
-                className="text-[#FA2FB5] hover:text-[#FFC23C] transition-colors"
-              >
-                View all quests
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredQuests.map((quest) => (
-                <div
+            
+            <div className="space-y-4 max-h-[calc(100vh-400px)] overflow-y-auto pr-2">
+              {filteredQuests.map((quest, index) => (
+                <motion.div
                   key={quest._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
                   onClick={() => handleQuestClick(quest._id)}
-                  className="bg-white/5 border-2 border-[#FA2FB5]/20 rounded-lg p-4 hover:bg-white/10 hover:border-[#FA2FB5] hover:shadow-xl transition-all cursor-pointer"
+                  className="cursor-pointer"
                 >
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-lg text-white">{quest.title}</h3>
-                    <span className="bg-gradient-to-r from-[#FFC23C] to-[#FA2FB5] text-white px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ml-2">
-                      +{quest.impactPoints} pts
-                    </span>
-                  </div>
-                  <p className="text-gray-300 text-sm mb-2 line-clamp-2">{quest.description}</p>
-                  <div className="flex items-center text-gray-400 text-sm mb-2">
-                    <MapPin className="w-4 h-4 mr-1 text-[#FFC23C]" />
-                    <span className="line-clamp-1">{quest.location.address}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <span className="bg-[#31087B]/50 text-[#FFC23C] px-2 py-1 rounded text-xs font-medium capitalize border border-[#FFC23C]/30">
-                      {quest.category}
-                    </span>
-                  </div>
-                </div>
+                  <Card hover>
+                    <CardBody>
+                      <div className="flex justify-between items-start mb-3">
+                        <h3 className="font-bold text-lg text-white flex-1">
+                          {quest.title}
+                        </h3>
+                        <div className="flex items-center gap-1 bg-gradient-to-r from-[#FA2FB5] to-[#FFC23C] text-white px-3 py-1 rounded-full text-sm font-bold whitespace-nowrap ml-3">
+                          <Award className="w-4 h-4" />
+                          {quest.impactPoints}
+                        </div>
+                      </div>
+                      
+                      <p className="text-gray-300 text-sm mb-3 line-clamp-2">
+                        {quest.description}
+                      </p>
+                      
+                      <div className="flex items-center text-gray-400 text-sm mb-3">
+                        <MapPin className="w-4 h-4 mr-1 text-[#FFC23C] flex-shrink-0" />
+                        <span className="line-clamp-1">{quest.location.address}</span>
+                      </div>
+                      
+                      <Badge variant={getCategoryColor(quest.category) as any} className="capitalize">
+                        {quest.category}
+                      </Badge>
+                    </CardBody>
+                  </Card>
+                </motion.div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* Map */}
-        <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl overflow-hidden border-2 border-[#FA2FB5]/30">
-          <QuestMap quests={filteredQuests} onQuestClick={handleQuestClick} />
+          {/* Map */}
+          <div className="lg:sticky lg:top-6 h-[500px] lg:h-[calc(100vh-250px)]">
+            <Card className="h-full">
+              <CardBody className="p-0 h-full">
+                <QuestMap quests={filteredQuests} onQuestClick={handleQuestClick} />
+              </CardBody>
+            </Card>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </Container>
   );
 }
