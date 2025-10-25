@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Quest } from '@/models';
-import realtimeManager, { REALTIME_EVENTS } from '@/lib/realtime';
+import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,6 +12,19 @@ export async function GET(request: NextRequest) {
     const lat = searchParams.get('lat');
     const lng = searchParams.get('lng');
     const radius = searchParams.get('radius') || '10000'; // 10km default
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const skip = parseInt(searchParams.get('skip') || '0');
+
+    // Check cache only for non-location queries on first page
+    const cacheKey = lat && lng 
+      ? `quests:nearby:${lat}:${lng}:${radius}:${limit}:${skip}`
+      : `${CACHE_KEYS.QUESTS_ACTIVE}:${limit}:${skip}`;
+    
+    const cached = cache.get(cacheKey);
+    if (cached && skip === 0) {
+      console.log('Returning cached quests');
+      return NextResponse.json(cached);
+    }
 
     let query: any = { 
       isActive: true,
@@ -31,13 +44,29 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const quests = await Quest.find(query).sort({ createdAt: -1 }).limit(50);
+    // Use lean() for better performance and select only needed fields
+    const quests = await Quest.find(query)
+      .select('title description location category impactPoints isActive status completionCount blockchainQuestId createdAt')
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip(skip)
+      .lean();
 
-    return NextResponse.json({
+    // Get total count
+    const total = await Quest.countDocuments(query);
+
+    const response = {
       success: true,
       quests,
       count: quests.length,
-    });
+      total,
+      hasMore: skip + quests.length < total,
+    };
+
+    // Cache for 30 seconds
+    cache.set(cacheKey, response, CACHE_TTL.SHORT);
+
+    return NextResponse.json(response);
   } catch (error: any) {
     console.error('Error fetching quests:', error);
     return NextResponse.json(
@@ -85,11 +114,8 @@ export async function POST(request: NextRequest) {
       creatorAddress: creatorAddress?.toLowerCase(), // Store creator address for rewards
     });
 
-    // Emit real-time event for quest creation
-    realtimeManager.emit(REALTIME_EVENTS.QUEST_CREATED, {
-      quest: quest.toObject(),
-      timestamp: Date.now(),
-    });
+    // Invalidate quest cache
+    cache.invalidatePattern('quests:');
 
     return NextResponse.json({
       success: true,

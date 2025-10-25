@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Map, 
@@ -36,20 +36,19 @@ export default function AdminDashboard() {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchDashboardStats();
-  }, []);
-
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = useCallback(async () => {
     try {
-      const questsRes = await fetch('/api/quests');
-      const questsData = await questsRes.json();
-      
-      const submissionsRes = await fetch('/api/admin/submissions');
-      const submissionsData = await submissionsRes.json();
-      
-      const usersRes = await fetch('/api/admin/users');
-      const usersData = await usersRes.json();
+      const [questsRes, submissionsRes, usersRes] = await Promise.all([
+        fetch('/api/quests'),
+        fetch('/api/admin/submissions'),
+        fetch('/api/admin/users'),
+      ]);
+
+      const [questsData, submissionsData, usersData] = await Promise.all([
+        questsRes.json(),
+        submissionsRes.json(),
+        usersRes.json(),
+      ]);
 
       setStats({
         totalQuests: questsData.count || 0,
@@ -64,7 +63,16 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardStats();
+    
+    // Refresh stats every 30 seconds
+    const interval = setInterval(fetchDashboardStats, 30000);
+    
+    return () => clearInterval(interval);
+  }, [fetchDashboardStats]);
 
   const statCards = [
     {

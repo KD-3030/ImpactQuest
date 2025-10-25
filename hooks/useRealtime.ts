@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
 export const REALTIME_EVENTS = {
   QUEST_CREATED: 'quest:created',
@@ -57,13 +57,27 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const reconnectAttemptsRef = useRef(0);
+  
+  // Disable SSE in development to prevent connection loops
+  // SSE doesn't work reliably in Next.js dev mode
+  const isDev = process.env.NODE_ENV === 'development';
+  const realtimeEnabled = enabled && !isDev;
+  
+  // Memoize events array to prevent unnecessary reconnections
+  const eventsKey = useMemo(() => events.sort().join(','), [events]);
 
   const connect = useCallback(() => {
-    if (!enabled || eventSourceRef.current) return;
+    // Skip if not enabled or in development
+    if (!realtimeEnabled || eventSourceRef.current) {
+      if (isDev) {
+        console.log('Real-time disabled in development mode');
+        setIsConnected(false);
+      }
+      return;
+    }
 
     try {
-      const eventsParam = events.join(',');
-      const url = `/api/realtime?events=${encodeURIComponent(eventsParam)}`;
+      const url = `/api/realtime?events=${encodeURIComponent(eventsKey)}`;
       const eventSource = new EventSource(url);
 
       eventSource.onopen = () => {
@@ -78,21 +92,28 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
         console.error('Real-time connection error:', err);
         setIsConnected(false);
         
+        // Close the current connection
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close();
+          eventSourceRef.current = null;
+        }
+        
         const error = new Error('Real-time connection failed');
         setError(error);
         onError?.(error);
 
-        // Exponential backoff for reconnection
-        const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
-        reconnectAttemptsRef.current += 1;
+        // Only reconnect if still enabled
+        if (realtimeEnabled) {
+          // Exponential backoff for reconnection
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
+          reconnectAttemptsRef.current += 1;
 
-        reconnectTimeoutRef.current = setTimeout(() => {
-          if (eventSourceRef.current) {
-            eventSourceRef.current.close();
-            eventSourceRef.current = null;
-          }
-          connect();
-        }, delay);
+          console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`);
+          
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connect();
+          }, delay);
+        }
       };
 
       // Listen for all subscribed events
@@ -132,7 +153,7 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
       setError(err);
       onError?.(err);
     }
-  }, [enabled, events, onConnected, onError]);
+  }, [realtimeEnabled, eventsKey, events, onConnected, onError, isDev]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -149,16 +170,16 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
   }, [onDisconnected]);
 
   useEffect(() => {
-    if (enabled) {
+    if (realtimeEnabled) {
       connect();
-    } else {
-      disconnect();
     }
 
     return () => {
       disconnect();
     };
-  }, [enabled, connect, disconnect]);
+    // Only reconnect when enabled changes or events change, not when callbacks change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realtimeEnabled, eventsKey]);
 
   return {
     data,

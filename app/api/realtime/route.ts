@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import realtimeManager, { REALTIME_EVENTS } from '@/lib/realtime';
 
 /**
@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
 
       // Cleanup on connection close
       request.signal.addEventListener('abort', () => {
+        console.log('SSE connection closed');
         clearInterval(heartbeat);
         unsubscribers.forEach((unsubscribe) => unsubscribe());
         controller.close();
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  return new NextResponse(stream, {
+  return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',

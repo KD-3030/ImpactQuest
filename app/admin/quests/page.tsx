@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Edit, Trash2, Plus, MapPin, ToggleLeft, ToggleRight, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -28,11 +28,7 @@ export default function ManageQuests() {
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(() => {
-    fetchQuests();
-  }, []);
-
-  const fetchQuests = async () => {
+  const fetchQuests = useCallback(async () => {
     try {
       const response = await fetch('/api/quests');
       const data = await response.json();
@@ -42,7 +38,16 @@ export default function ManageQuests() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchQuests();
+    
+    // Refresh quests every 30 seconds
+    const interval = setInterval(fetchQuests, 30000);
+    
+    return () => clearInterval(interval);
+  }, [fetchQuests]);
 
   const handleDelete = async (questId: string) => {
     if (!confirm('Are you sure you want to delete this quest?')) return;

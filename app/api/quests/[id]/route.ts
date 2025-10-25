@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { Quest } from '@/models';
-import realtimeManager, { REALTIME_EVENTS } from '@/lib/realtime';
+import { cache } from '@/lib/cache';
 
 export async function GET(
   request: NextRequest,
@@ -52,11 +52,8 @@ export async function PUT(
       );
     }
 
-    // Emit real-time event for quest update
-    realtimeManager.emit(REALTIME_EVENTS.QUEST_UPDATED, {
-      quest: quest.toObject(),
-      timestamp: Date.now(),
-    });
+    // Invalidate quest cache
+    cache.invalidatePattern('quests:');
 
     return NextResponse.json({
       success: true,
@@ -86,6 +83,9 @@ export async function DELETE(
         { status: 404 }
       );
     }
+
+    // Invalidate quest cache
+    cache.invalidatePattern('quests:');
 
     return NextResponse.json({
       success: true,

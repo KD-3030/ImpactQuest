@@ -50,6 +50,10 @@ const UserSchema = new Schema({
   },
 });
 
+// Add indexes for User queries (walletAddress already indexed via unique: true)
+UserSchema.index({ totalImpactPoints: -1 });
+UserSchema.index({ createdAt: -1 });
+
 // Quest Schema
 const QuestSchema = new Schema({
   title: {
@@ -140,6 +144,9 @@ const QuestSchema = new Schema({
 QuestSchema.index({ location: '2dsphere' });
 QuestSchema.index({ status: 1 });
 QuestSchema.index({ completedAt: 1 });
+QuestSchema.index({ isActive: 1, status: 1 }); // Compound index for common queries
+QuestSchema.index({ createdAt: -1 });
+QuestSchema.index({ category: 1, isActive: 1 }); // For category filtering
 
 // Submission Schema
 const SubmissionSchema = new Schema({
@@ -188,6 +195,8 @@ const SubmissionSchema = new Schema({
 SubmissionSchema.index({ userId: 1, questId: 1 });
 SubmissionSchema.index({ walletAddress: 1, verified: 1 });
 SubmissionSchema.index({ questId: 1, verified: 1 });
+SubmissionSchema.index({ verified: 1, submittedAt: -1 }); // For admin dashboard
+SubmissionSchema.index({ submittedAt: -1 }); // For sorting by date
 
 // Reward Transaction Schema
 const RewardTransactionSchema = new Schema({
