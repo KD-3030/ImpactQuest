@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import BlockchainRegistration from "@/components/BlockchainRegistration";
 
 export const metadata: Metadata = {
   title: "ImpactQuest - Gamified Impact Platform",
@@ -40,7 +41,10 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans antialiased">
-        <Providers>{children}</Providers>
+        <Providers>
+          <BlockchainRegistration />
+          {children}
+        </Providers>
       </body>
     </html>
   );

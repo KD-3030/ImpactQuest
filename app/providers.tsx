@@ -17,12 +17,14 @@ import {
 import { AuthProvider } from '@/lib/auth-context';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import RewardNotifications from '@/components/RewardNotifications';
+import { useEffect } from 'react';
+import { useNetwork, useSwitchNetwork } from 'wagmi';
 import { useState } from 'react';
 
 const config = getDefaultConfig({
   appName: 'ImpactQuest',
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'demo-project-id-impactquest',
-  chains: [celo, celoAlfajores],
+  chains: [celoAlfajores],
   ssr: true,
 });
 
@@ -51,6 +53,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       },
     },
   }));
+
+  // ...existing code...
 
   return (
     <ErrorBoundary>

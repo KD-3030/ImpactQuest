@@ -79,13 +79,17 @@ export async function POST(request: NextRequest) {
     // Convert tokens to wei (IMP has 18 decimals like Ether)
     const tokensInWei = BigInt(Math.floor(tokensSpent * 10**18));
 
-    // Call smart contract recordRedemption function
-    // This burns tokens from the user's wallet
+    // Calculate CELO amount to send (for demo, 0.01 CELO per redemption)
+    // You can replace this logic with your own pricing
+    const celoAmount = BigInt(Math.floor(0.01 * 1e18));
+
+    // Call smart contract recordRedemption function with CELO value
     const hash = await walletClient.writeContract({
       address: CONTRACT_ADDRESS,
       abi: CONTRACT_ABI.abi,
       functionName: 'recordRedemption',
       args: [userAddress as `0x${string}`, tokensInWei, shopName],
+      value: celoAmount,
     });
 
     console.log('Redemption transaction sent:', hash);

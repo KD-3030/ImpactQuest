@@ -700,17 +700,29 @@ contract ImpactQuest is ERC20, Ownable, ReentrancyGuard {
     /**
      * @dev Record a redemption (spending tokens) - called by backend
      */
+    address public treasury;
+
+    function setTreasury(address _treasury) external onlyOwner {
+        treasury = _treasury;
+    }
+
     function recordRedemption(
         address user,
         uint256 tokensSpent,
         string memory shopName
-    ) external onlyOracle {
+    ) external payable onlyOracle nonReentrant {
         require(userProfiles[user].isActive, "User not registered");
         require(balanceOf(user) >= tokensSpent, "Insufficient token balance");
-        
-        // Burn the tokens (or transfer to a treasury address if preferred)
+        require(msg.value > 0, "CELO payment required");
+        require(treasury != address(0), "Treasury not set");
+
+        // Burn the tokens
         _burn(user, tokensSpent);
-        
+
+        // Transfer CELO to treasury/shop
+        (bool sent, ) = treasury.call{value: msg.value}("");
+        require(sent, "CELO transfer failed");
+
         // Record negative transaction
         _recordTransaction(
             user,

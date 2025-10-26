@@ -147,53 +147,49 @@ export async function POST(request: NextRequest) {
       timestamp: Date.now(),
     });
 
-    // Check if user is registered on blockchain first
+    // Call oracle to record redemption on blockchain
     let blockchainResult = null;
     try {
-      const registrationCheck = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/oracle/register-user?userAddress=${walletAddress}`);
-      const registrationData = await registrationCheck.json();
-      
-      if (!registrationData.isRegistered) {
-        // User not registered on blockchain
-        console.warn('User not registered on blockchain:', walletAddress);
-        blockchainResult = {
-          error: 'not_registered',
-          message: 'Please register on blockchain by calling joinImpactQuest from your wallet',
-          registrationNeeded: true,
-        };
-      } else {
-        // User is registered, proceed with redemption
-        const oracleResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/oracle/record-redemption`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userAddress: walletAddress,
-            tokensSpent: tokensRequired,
-            shopName: shop?.name || 'Direct Redemption',
-          }),
-        });
+      // Always call oracle - let it handle registration errors
+      const oracleResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/oracle/record-redemption`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userAddress: walletAddress,
+          tokensSpent: tokensRequired,
+          shopName: shop?.name || 'Direct Redemption',
+        }),
+      });
 
-        const oracleData = await oracleResponse.json();
-        
-        if (oracleData.success) {
-          blockchainResult = {
-            transactionHash: oracleData.transactionHash,
-            blockNumber: oracleData.blockNumber,
-          };
-          console.log('Tokens burned on blockchain:', oracleData.transactionHash);
-        } else {
-          console.error('Blockchain redemption failed:', oracleData.error);
-          blockchainResult = {
-            error: oracleData.error,
-            message: 'Blockchain transaction failed but MongoDB updated',
-          };
+      const oracleData = await oracleResponse.json();
+      
+      if (oracleData.success) {
+        blockchainResult = {
+          success: true,
+          transactionHash: oracleData.transactionHash,
+          blockNumber: oracleData.blockNumber,
+          gasUsed: oracleData.gasUsed,
+        };
+        console.log('✅ Blockchain transaction successful:', oracleData.transactionHash);
+      } else {
+        blockchainResult = {
+          success: false,
+          error: oracleData.error,
+          details: oracleData.details,
+        };
+        // Check if user needs to register
+        if (oracleData.error?.includes('not registered')) {
+          blockchainResult.registrationNeeded = true;
+          blockchainResult.message = 'User not registered on blockchain. Please register first.';
         }
+        console.error('❌ Blockchain redemption failed:', oracleData.error);
       }
     } catch (oracleError: any) {
-      console.error('Error calling redemption oracle:', oracleError.message);
+      console.error('❌ Error calling redemption oracle:', oracleError.message);
       blockchainResult = {
+        success: false,
         error: 'oracle_error',
         message: oracleError.message,
       };

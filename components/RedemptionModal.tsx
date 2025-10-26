@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAccount } from 'wagmi';
+import { useAccount, useWalletClient } from 'wagmi';
 import {
   X,
   Coins,
@@ -12,7 +12,10 @@ import {
   QrCode,
   AlertCircle,
   Sparkles,
+  Shield,
+  Loader,
 } from 'lucide-react';
+import { isUserRegistered, joinPlatform } from '@/lib/blockchain';
 
 interface RedemptionModalProps {
   shop: {
@@ -54,12 +57,29 @@ export default function RedemptionModal({
   onSuccess,
 }: RedemptionModalProps) {
   const { address } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  // Network info not available, so block redemption if not on Alfajores
+  const [showNetworkPrompt, setShowNetworkPrompt] = useState(false);
+  useEffect(() => {
+    // Always show prompt, since we can't check chain
+    if (isOpen) {
+      setShowNetworkPrompt(true);
+    } else {
+      setShowNetworkPrompt(false);
+    }
+  }, [isOpen]);
   const [purchaseAmount, setPurchaseAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [redemptionCode, setRedemptionCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  
+  // Blockchain registration state
+  const [isCheckingRegistration, setIsCheckingRegistration] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [registrationError, setRegistrationError] = useState('');
 
   // Calculate discount preview
   const amount = parseFloat(purchaseAmount) || 0;
@@ -83,6 +103,68 @@ export default function RedemptionModal({
       setSuccess(false);
     }
   }, [isOpen]);
+
+  // Check blockchain registration when modal opens
+  useEffect(() => {
+    if (isOpen && address) {
+      checkBlockchainRegistration();
+    }
+  }, [isOpen, address]);
+
+  // Switch to Alfajores network if not already
+  // ...existing code...
+
+  const checkBlockchainRegistration = async () => {
+    if (!address) return;
+    
+    try {
+      setIsCheckingRegistration(true);
+      const registered = await isUserRegistered(address);
+      setIsRegistered(registered);
+      
+      if (!registered) {
+        setError('⚠️ You need to register on blockchain before redeeming tokens');
+      }
+    } catch (err) {
+      console.error('Error checking registration:', err);
+      setRegistrationError('Failed to check registration status');
+    } finally {
+      setIsCheckingRegistration(false);
+    }
+  };
+
+  const handleRegister = async () => {
+    if (!walletClient) {
+      setRegistrationError('Please connect your wallet first');
+      return;
+    }
+
+    try {
+      setIsRegistering(true);
+      setRegistrationError('');
+      
+      console.log('🔗 Registering user on blockchain...');
+      
+      const result = await joinPlatform(walletClient);
+      
+      if (result.success) {
+        console.log('✅ User registered on blockchain:', result.transactionHash);
+        setIsRegistered(true);
+        setError(''); // Clear the error message
+      } else if (result.alreadyRegistered) {
+        console.log('ℹ️ User already registered on blockchain');
+        setIsRegistered(true);
+        setError('');
+      } else {
+        setRegistrationError(result.error || 'Registration failed');
+      }
+    } catch (err: any) {
+      console.error('❌ Registration error:', err);
+      setRegistrationError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setIsRegistering(false);
+    }
+  };
 
   const handleRedeem = async () => {
     if (!address) {
@@ -148,6 +230,52 @@ export default function RedemptionModal({
 
   if (!isOpen) return null;
 
+  if (showNetworkPrompt) {
+    return (
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-gradient-to-br from-[#100720] to-[#31087B] rounded-2xl p-8 max-w-md w-full border border-purple-500/30 flex flex-col items-center">
+          <AlertCircle className="w-10 h-10 text-yellow-400 mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">Network Required</h2>
+          <p className="text-gray-300 mb-4 text-center">Please connect your wallet to <span className="font-bold text-[#FA2FB5]">Celo Alfajores Testnet</span> (ID: 44787) in MetaMask or your wallet app to redeem rewards.</p>
+          <button
+            onClick={async () => {
+              if (window.ethereum) {
+                try {
+                  await window.ethereum.request({
+                    method: 'wallet_addEthereumChain',
+                    params: [{
+                      chainId: '0xaef3', // 44787 in hex
+                      chainName: 'Celo Alfajores Testnet',
+                      nativeCurrency: { name: 'CELO', symbol: 'CELO', decimals: 18 },
+                      rpcUrls: ['https://alfajores-forno.celo-testnet.org'],
+                      blockExplorerUrls: ['https://alfajores.celoscan.io'],
+                    }],
+                  });
+                } catch (err) {
+                  alert('Please add Celo Alfajores manually in MetaMask.');
+                }
+              } else {
+                alert('MetaMask not detected. Please use MetaMask or a compatible wallet.');
+              }
+            }}
+            className="py-2 px-4 rounded-xl bg-[#FFC23C]/20 text-[#FFC23C] font-bold transition-colors mb-2"
+          >
+            Add Alfajores to MetaMask
+          </button>
+          <div className="text-xs text-gray-400 mb-2 text-center">
+            If automatic switching fails, follow these steps:<br />
+            <span className="font-mono">Network Name: Celo Alfajores Testnet<br />RPC URL: https://alfajores-forno.celo-testnet.org<br />Chain ID: 44787<br />Currency Symbol: CELO<br />Block Explorer: https://alfajores.celoscan.io</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="py-2 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <AnimatePresence>
       <motion.div
@@ -184,33 +312,25 @@ export default function RedemptionModal({
                   Redemption Successful!
                 </h2>
                 <p className="text-gray-400">
-                  Show this code to the shop to claim your discount
+                  Your transaction is confirmed on Celo blockchain.
                 </p>
               </div>
 
-              {/* Redemption Code */}
               <div className="relative p-6 rounded-xl bg-white/5 border-2 border-[#FA2FB5]/30">
                 <div className="text-center space-y-2">
-                  <p className="text-gray-400 text-sm">Redemption Code</p>
-                  <p className="text-3xl font-bold text-[#FFC23C] font-mono tracking-wider">
+                  <p className="text-gray-400 text-sm">Transaction Hash</p>
+                  <p className="text-xs font-mono text-[#FFC23C] break-all">
                     {redemptionCode}
                   </p>
-                  <button
-                    onClick={copyToClipboard}
-                    className="flex items-center gap-2 mx-auto px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+                  <a
+                    href={`https://alfajores.celoscan.io/tx/${redemptionCode}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 mx-auto px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors mt-2"
                   >
-                    {copied ? (
-                      <>
-                        <Check className="w-4 h-4" />
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-4 h-4" />
-                        Copy Code
-                      </>
-                    )}
-                  </button>
+                    <QrCode className="w-4 h-4" />
+                    View on CeloScan
+                  </a>
                 </div>
               </div>
 
@@ -273,23 +393,20 @@ export default function RedemptionModal({
               </div>
 
               {/* Purchase Amount Input */}
-              <div>
-                <label className="block text-gray-300 text-sm font-medium mb-2">
-                  Purchase Amount (cUSD)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg font-bold">
-                    $
-                  </span>
-                  <input
-                    type="number"
-                    value={purchaseAmount}
-                    onChange={(e) => setPurchaseAmount(e.target.value)}
-                    placeholder="0.00"
-                    step="0.01"
-                    min="0"
-                    className="w-full pl-10 pr-4 py-4 bg-white/10 border border-purple-500/30 rounded-xl text-white text-lg font-semibold placeholder-gray-500 focus:outline-none focus:border-[#FA2FB5] transition-colors"
-                  />
+              <div className="mb-6">
+                <label className="block text-gray-300 mb-2 font-semibold">Purchase Amount (cUSD)</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={purchaseAmount}
+                  onChange={(e) => setPurchaseAmount(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg bg-white/10 text-white border border-purple-500/30 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Enter amount in cUSD"
+                  disabled={loading || success}
+                />
+                <div className="mt-2 text-sm text-yellow-400">
+                  <strong>Note:</strong> Redeeming will deduct <span className="font-bold">0.01 CELO</span> from your wallet and burn {tokensRequired} IMP tokens.
                 </div>
               </div>
 

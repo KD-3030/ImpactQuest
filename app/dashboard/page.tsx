@@ -5,6 +5,7 @@ import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
 import { Sprout, Target, Award, TrendingUp, Coins, Gift, Store, Sparkles } from 'lucide-react';
 import { getUserProfile, getTokenBalance } from '@/lib/blockchain';
+import RegisterButton from '@/components/RegisterButton';
 
 interface UserStats {
   level: number;
@@ -162,6 +163,9 @@ export default function UserDashboard() {
           Continue your impact journey and grow your garden
         </p>
       </div>
+
+      {/* Registration Status */}
+      <RegisterButton />
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
