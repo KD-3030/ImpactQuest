@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createWalletClient, http, encodeAbiParameters, keccak256 } from 'viem';
 import { celoAlfajores } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
-import CONTRACT_ABI from '@/contracts/artifacts/contracts/ImpactQuest.sol/ImpactQuest.json';
+import CONTRACT_ABI from '@/lib/contracts/ImpactQuest.json';
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`;
 const ORACLE_PRIVATE_KEY = process.env.ORACLE_PRIVATE_KEY as `0x${string}`;

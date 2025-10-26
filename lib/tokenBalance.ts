@@ -1,6 +1,6 @@
 import { createPublicClient, http, formatUnits } from 'viem';
 import { celoAlfajores } from 'viem/chains';
-import CONTRACT_ABI from '@/contracts/artifacts/contracts/ImpactQuest.sol/ImpactQuest.json';
+import CONTRACT_ABI from '@/lib/contracts/ImpactQuest.json';
 
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS as `0x${string}`;
 
