@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAccount, useWalletClient } from 'wagmi';
+import { useAccount, useWalletClient, useChainId } from 'wagmi';
 import {
   X,
   Coins,
@@ -16,6 +16,7 @@ import {
   Loader,
 } from 'lucide-react';
 import { isUserRegistered, joinPlatform } from '@/lib/blockchain';
+import { getTokenBalance, refreshMetaMaskTokenBalance } from '@/lib/tokenBalance';
 
 interface RedemptionModalProps {
   shop: {
@@ -58,19 +59,25 @@ export default function RedemptionModal({
 }: RedemptionModalProps) {
   const { address } = useAccount();
   const { data: walletClient } = useWalletClient();
-  // Network info not available, so block redemption if not on Alfajores
+  const chainId = useChainId();
+  
   const [showNetworkPrompt, setShowNetworkPrompt] = useState(false);
+  
   useEffect(() => {
-    // Always show prompt, since we can't check chain
-    if (isOpen) {
+    // Check if on correct network (Alfajores = 44787)
+    if (isOpen && chainId !== 44787) {
+      console.log('⚠️ Wrong network. Current:', chainId, 'Expected: 44787 (Alfajores)');
       setShowNetworkPrompt(true);
     } else {
       setShowNetworkPrompt(false);
     }
-  }, [isOpen]);
+  }, [isOpen, chainId]);
   const [purchaseAmount, setPurchaseAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [redemptionCode, setRedemptionCode] = useState('');
+  const [transactionHash, setTransactionHash] = useState('');
+  const [blockchainStatus, setBlockchainStatus] = useState<'pending' | 'success' | 'error' | null>(null);
+  const [blockchainBalance, setBlockchainBalance] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -98,6 +105,8 @@ export default function RedemptionModal({
       // Reset state when modal closes
       setPurchaseAmount('');
       setRedemptionCode('');
+      setTransactionHash('');
+      setBlockchainStatus(null);
       setCopied(false);
       setError('');
       setSuccess(false);
@@ -190,6 +199,7 @@ export default function RedemptionModal({
     try {
       setLoading(true);
       setError('');
+      setBlockchainStatus('pending');
 
       const response = await fetch('/api/redemptions', {
         method: 'POST',
@@ -207,15 +217,46 @@ export default function RedemptionModal({
 
       if (data.success && data.redemption) {
         setRedemptionCode(data.redemption.redemptionCode);
-        setSuccess(true);
-        if (onSuccess) {
-          onSuccess();
+        
+        // Check if blockchain transaction was successful
+        if ((data as any).blockchain?.success) {
+          setTransactionHash((data as any).blockchain.transactionHash);
+          setBlockchainStatus('success');
+          setSuccess(true);
+          
+          // Show success message with transaction hash
+          console.log('✅ Redemption successful on blockchain:', (data as any).blockchain.transactionHash);
+          
+          // Fetch updated blockchain balance
+          if (address) {
+            try {
+              const newBalance = await getTokenBalance(address as `0x${string}`);
+              setBlockchainBalance(newBalance);
+              console.log('📊 Updated blockchain balance:', newBalance, 'IMP');
+              
+              // Trigger MetaMask to refresh (optional - prompts user to add token)
+              await refreshMetaMaskTokenBalance();
+            } catch (balanceError) {
+              console.error('Error fetching updated balance:', balanceError);
+            }
+          }
+          
+          if (onSuccess) {
+            onSuccess();
+          }
+        } else {
+          // MongoDB redemption succeeded but blockchain failed
+          setBlockchainStatus('error');
+          setError((data as any).blockchain?.error || 'Blockchain transaction failed');
+          console.error('❌ Blockchain transaction failed:', (data as any).blockchain);
         }
       } else {
+        setBlockchainStatus('error');
         setError(data.error || 'Failed to create redemption');
       }
     } catch (err) {
       console.error('Redemption error:', err);
+      setBlockchainStatus('error');
       setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -241,18 +282,35 @@ export default function RedemptionModal({
             onClick={async () => {
               if (window.ethereum) {
                 try {
+                  // Try to switch to Alfajores
                   await window.ethereum.request({
-                    method: 'wallet_addEthereumChain',
-                    params: [{
-                      chainId: '0xaef3', // 44787 in hex
-                      chainName: 'Celo Alfajores Testnet',
-                      nativeCurrency: { name: 'CELO', symbol: 'CELO', decimals: 18 },
-                      rpcUrls: ['https://alfajores-forno.celo-testnet.org'],
-                      blockExplorerUrls: ['https://alfajores.celoscan.io'],
-                    }],
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: '0xaef3' }], // 44787 in hex
                   });
-                } catch (err) {
-                  alert('Please add Celo Alfajores manually in MetaMask.');
+                  setShowNetworkPrompt(false);
+                } catch (switchError: any) {
+                  // If network doesn't exist (error code 4902), add it
+                  if (switchError.code === 4902) {
+                    try {
+                      await window.ethereum.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [{
+                          chainId: '0xaef3', // 44787 in hex
+                          chainName: 'Celo Alfajores Testnet',
+                          nativeCurrency: { name: 'CELO', symbol: 'CELO', decimals: 18 },
+                          rpcUrls: ['https://alfajores-forno.celo-testnet.org'],
+                          blockExplorerUrls: ['https://alfajores.celoscan.io'],
+                        }],
+                      });
+                      setShowNetworkPrompt(false);
+                    } catch (addError) {
+                      console.error('Failed to add network:', addError);
+                      alert('Please add Celo Alfajores manually in MetaMask.');
+                    }
+                  } else {
+                    console.error('Failed to switch network:', switchError);
+                    alert('Please switch to Celo Alfajores manually in MetaMask.');
+                  }
                 }
               } else {
                 alert('MetaMask not detected. Please use MetaMask or a compatible wallet.');
@@ -260,7 +318,7 @@ export default function RedemptionModal({
             }}
             className="py-2 px-4 rounded-xl bg-[#FFC23C]/20 text-[#FFC23C] font-bold transition-colors mb-2"
           >
-            Add Alfajores to MetaMask
+            Switch to Alfajores Network
           </button>
           <div className="text-xs text-gray-400 mb-2 text-center">
             If automatic switching fails, follow these steps:<br />
@@ -303,7 +361,7 @@ export default function RedemptionModal({
           {success ? (
             /* Success View */
             <div className="text-center space-y-6">
-              <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
+              <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center animate-bounce">
                 <Check className="w-10 h-10 text-white" />
               </div>
 
@@ -312,7 +370,7 @@ export default function RedemptionModal({
                   Redemption Successful!
                 </h2>
                 <p className="text-gray-400">
-                  Your transaction is confirmed on Celo blockchain.
+                  Your tokens have been burned and CELO sent to treasury.
                 </p>
               </div>
 
@@ -320,15 +378,15 @@ export default function RedemptionModal({
                 <div className="text-center space-y-2">
                   <p className="text-gray-400 text-sm">Transaction Hash</p>
                   <p className="text-xs font-mono text-[#FFC23C] break-all">
-                    {redemptionCode}
+                    {transactionHash || redemptionCode}
                   </p>
                   <a
-                    href={`https://alfajores.celoscan.io/tx/${redemptionCode}`}
+                    href={`https://alfajores.celoscan.io/tx/${transactionHash || redemptionCode}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 mx-auto px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors mt-2"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors mt-2"
                   >
-                    <QrCode className="w-4 h-4" />
+                    <Shield className="w-4 h-4" />
                     View on CeloScan
                   </a>
                 </div>
@@ -347,9 +405,19 @@ export default function RedemptionModal({
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Tokens Used</span>
-                  <span className="text-[#FFC23C] font-semibold">{tokensRequired} tokens</span>
+                  <span className="text-gray-400">Tokens Burned</span>
+                  <span className="text-[#FFC23C] font-semibold">{tokensRequired} IMP</span>
                 </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">CELO Sent</span>
+                  <span className="text-[#FA2FB5] font-semibold">0.01 CELO</span>
+                </div>
+                {blockchainBalance !== null && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">New Blockchain Balance</span>
+                    <span className="text-green-400 font-semibold">{blockchainBalance.toFixed(2)} IMP</span>
+                  </div>
+                )}
                 <div className="h-px bg-white/20" />
                 <div className="flex justify-between">
                   <span className="text-white font-bold">Final Amount</span>
@@ -357,6 +425,10 @@ export default function RedemptionModal({
                     ${finalAmount.toFixed(2)}
                   </span>
                 </div>
+              </div>
+
+              <div className="text-xs text-gray-400 text-center">
+                💡 Tip: If your MetaMask balance hasn't updated yet, try refreshing the page or wait a few moments.
               </div>
 
               <button
@@ -476,7 +548,8 @@ export default function RedemptionModal({
               <div className="flex gap-3">
                 <button
                   onClick={onClose}
-                  className="flex-1 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition-colors"
+                  disabled={loading}
+                  className="flex-1 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
@@ -488,11 +561,33 @@ export default function RedemptionModal({
                     !hasEnoughTokens ||
                     !meetsStageRequirement
                   }
-                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#FA2FB5] to-[#FFC23C] text-white font-bold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none"
+                  className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#FA2FB5] to-[#FFC23C] text-white font-bold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none flex items-center justify-center gap-2"
                 >
-                  {loading ? 'Processing...' : 'Redeem Tokens'}
+                  {loading ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      {blockchainStatus === 'pending' ? 'Processing on Blockchain...' : 'Processing...'}
+                    </>
+                  ) : (
+                    'Redeem Tokens'
+                  )}
                 </button>
               </div>
+              
+              {/* Blockchain Status Indicator */}
+              {loading && blockchainStatus === 'pending' && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/20 border border-blue-500/30"
+                >
+                  <Loader className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5 animate-spin" />
+                  <div className="text-blue-300 text-sm">
+                    <p className="font-semibold">Transaction in Progress</p>
+                    <p className="text-xs mt-1">Burning tokens and sending CELO to treasury... Please wait.</p>
+                  </div>
+                </motion.div>
+              )}
             </div>
           )}
         </motion.div>

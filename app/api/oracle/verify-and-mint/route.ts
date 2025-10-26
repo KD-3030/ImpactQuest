@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createWalletClient, createPublicClient, http, keccak256, toHex } from 'viem';
 import { celoAlfajores } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
-import CONTRACT_ABI from '@/lib/contracts/ImpactQuest.json';
+import CONTRACT_ABI from '@/contracts/artifacts/contracts/ImpactQuest.sol/ImpactQuest.json';
 
 // Oracle wallet configuration
 const ORACLE_PRIVATE_KEY = process.env.ORACLE_PRIVATE_KEY as `0x${string}`;

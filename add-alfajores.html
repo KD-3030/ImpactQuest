@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add IMP Token to MetaMask</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .network-info {
+            background: #f7fafc;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .network-info p {
+            margin: 5px 0;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+        .error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+        .info {
+            background: #bee3f8;
+            color: #2c5282;
+            border: 1px solid #90cdf4;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🪙 Add IMP Token to MetaMask</h1>
+        <p style="color: #666; margin-bottom: 20px;">Click the button below to add IMP token to your MetaMask wallet</p>
+        
+        <div class="network-info">
+            <p><strong>Token Name:</strong> ImpactQuest Token</p>
+            <p><strong>Token Symbol:</strong> IMP</p>
+            <p><strong>Contract Address:</strong> 0x5a1d5441D6abe5E4FaAd49756f5d8f3Cd8Ab88Fe</p>
+            <p><strong>Decimals:</strong> 18</p>
+            <p><strong>Your Balance:</strong> 42 IMP</p>
+        </div>
+
+        <button id="addTokenBtn" onclick="addIMPToken()">
+            🪙 Add IMP Token to MetaMask
+        </button>
+
+        <button id="addNetworkBtn" onclick="addAlfajoresNetwork()" style="margin-top: 10px; background: linear-gradient(135deg, #FFC23C 0%, #FA2FB5 100%);">
+            🌐 Also Add Alfajores Network
+        </button>
+
+        <div id="status"></div>
+
+        <div style="margin-top: 30px; padding: 20px; background: #f7fafc; border-radius: 8px; border-left: 4px solid #48bb78;">
+            <h3 style="margin-top: 0; color: #22543d;">✅ Your Redemptions Are Working!</h3>
+            <p style="color: #2d3748; margin: 10px 0;">You've successfully redeemed 3 times:</p>
+            <ul style="color: #4a5568; font-size: 14px; font-family: monospace;">
+                <li>✓ Redemption 1: Nature's Basket Organic</li>
+                <li>✓ Redemption 2: Nature's Basket Organic</li>
+                <li>✓ Redemption 3: Green Clean Services</li>
+            </ul>
+            <p style="color: #2d3748; margin: 10px 0;"><strong>Total Spent:</strong> 3 IMP tokens</p>
+            <p style="color: #2d3748; margin: 10px 0;"><strong>Current Balance:</strong> 42 IMP tokens</p>
+            <a href="https://alfajores.celoscan.io/address/0x6C5D37AE32afbBC9B91Cb82e84295654224b84aA" 
+               target="_blank" 
+               style="color: #667eea; text-decoration: none; font-weight: 600;">
+                View your transactions on Celoscan →
+            </a>
+        </div>
+    </div>
+
+    <script>
+        async function addIMPToken() {
+            const statusDiv = document.getElementById('status');
+            const button = document.getElementById('addTokenBtn');
+            
+            if (typeof window.ethereum === 'undefined') {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = '❌ MetaMask is not installed. Please install MetaMask first.';
+                return;
+            }
+
+            try {
+                button.disabled = true;
+                button.textContent = 'Adding token...';
+                
+                const wasAdded = await window.ethereum.request({
+                    method: 'wallet_watchAsset',
+                    params: {
+                        type: 'ERC20',
+                        options: {
+                            address: '0x5a1d5441D6abe5E4FaAd49756f5d8f3Cd8Ab88Fe',
+                            symbol: 'IMP',
+                            decimals: 18,
+                            image: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x0000000000000000000000000000000000000000/logo.png'
+                        }
+                    }
+                });
+                
+                if (wasAdded) {
+                    statusDiv.className = 'status success';
+                    statusDiv.innerHTML = '✅ IMP token added to MetaMask! You should now see your 42 IMP tokens in your wallet.';
+                    button.textContent = '✅ Token Added!';
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.innerHTML = '❌ You rejected the request.';
+                    button.disabled = false;
+                    button.textContent = '🪙 Add IMP Token to MetaMask';
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = `❌ Error: ${error.message}`;
+                button.disabled = false;
+                button.textContent = '🪙 Add IMP Token to MetaMask';
+            }
+        }
+        async function addAlfajoresNetwork() {
+            const statusDiv = document.getElementById('status');
+            const button = document.getElementById('addNetworkBtn');
+            
+            if (typeof window.ethereum === 'undefined') {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = '❌ MetaMask is not installed. Please install MetaMask first.';
+                return;
+            }
+
+            try {
+                button.disabled = true;
+                button.textContent = 'Adding network...';
+                
+                await window.ethereum.request({
+                    method: 'wallet_addEthereumChain',
+                    params: [{
+                        chainId: '0xAEF3', // 44787 in hex
+                        chainName: 'Celo Alfajores Testnet',
+                        nativeCurrency: {
+                            name: 'CELO',
+                            symbol: 'CELO',
+                            decimals: 18
+                        },
+                        rpcUrls: ['https://alfajores-forno.celo-testnet.org'],
+                        blockExplorerUrls: ['https://alfajores.celoscan.io']
+                    }]
+                });
+                
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = '✅ Successfully added and switched to Alfajores! You can now close this page and return to ImpactQuest.';
+                button.textContent = '✅ Network Added!';
+                
+            } catch (error) {
+                console.error('Error:', error);
+                statusDiv.className = 'status error';
+                
+                if (error.code === 4001) {
+                    statusDiv.innerHTML = '❌ You rejected the request. Please try again.';
+                } else {
+                    statusDiv.innerHTML = `❌ Error: ${error.message}`;
+                }
+                
+                button.disabled = false;
+                button.textContent = '🚀 Add Alfajores Network to Wallet';
+            }
+        }
+
+        // Check if already on Alfajores
+        window.addEventListener('load', async () => {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                    const statusDiv = document.getElementById('status');
+                    
+                    if (chainId === '0xAEF3') {
+                        statusDiv.className = 'status success';
+                        statusDiv.innerHTML = '✅ Already connected to Alfajores! You can return to ImpactQuest.';
+                    } else {
+                        statusDiv.className = 'status info';
+                        statusDiv.innerHTML = `ℹ️ Currently on chain ID: ${chainId}. Click the button to switch to Alfajores.`;
+                    }
+                } catch (error) {
+                    console.error('Error checking network:', error);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

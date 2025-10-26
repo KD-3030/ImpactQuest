@@ -24,32 +24,47 @@ export default function RegisterButton() {
 
     try {
       setIsChecking(true);
+      
+      // Use userProfiles mapping directly (more reliable)
       const profile = await publicClient.readContract({
         address: CONTRACT_ADDRESS,
         abi: [
           {
-            inputs: [{ name: "user", type: "address" }],
-            name: "getUserProfile",
+            inputs: [{ name: "", type: "address" }],
+            name: "userProfiles",
             outputs: [
+              { name: "level", type: "uint8" },
+              { name: "totalImpactScore", type: "uint256" },
+              { name: "questsCompleted", type: "uint256" },
+              { name: "lastQuestTimestamp", type: "uint256" },
+              { name: "joinedTimestamp", type: "uint256" },
               { name: "isActive", type: "bool" },
-              { name: "joinedAt", type: "uint256" },
-              { name: "totalPointsEarned", type: "uint256" },
-              { name: "level", type: "uint256" },
-              { name: "completedQuests", type: "uint256" },
             ],
             stateMutability: "view",
             type: "function",
           },
         ],
-        functionName: "getUserProfile",
+        functionName: "userProfiles",
         args: [address],
       });
 
-      const isActive = profile[0];
+      // isActive is the 6th element (index 5)
+      const isActive = profile[5] as boolean;
       setIsRegistered(isActive);
-      console.log("✅ Registration Status:", isActive ? "Registered" : "Not Registered");
+      console.log("✅ Registration Status:", isActive ? "Registered ✅" : "Not Registered ❌");
+      
+      if (isActive) {
+        console.log("📊 User Profile:", {
+          level: Number(profile[0]),
+          totalImpactScore: profile[1].toString(),
+          questsCompleted: Number(profile[2]),
+          joinedTimestamp: Number(profile[4])
+        });
+      }
     } catch (error) {
-      console.error("Error checking registration:", error);
+      console.error("❌ Error checking registration:", error);
+      // If check fails, assume not registered
+      setIsRegistered(false);
     } finally {
       setIsChecking(false);
     }
@@ -63,7 +78,13 @@ export default function RegisterButton() {
 
     try {
       setIsRegistering(true);
-      console.log("🔗 Calling joinImpactQuest()...");
+      
+      // Check network
+      const chainId = await publicClient.getChainId();
+      console.log("🔗 Current Chain ID:", chainId);
+      console.log("🔗 Expected: 44787 (Alfajores) or 11142220 (Sepolia)");
+      console.log("📱 Your wallet address:", address);
+      console.log("📝 Contract address:", CONTRACT_ADDRESS);
 
       const hash = await walletClient.writeContract({
         address: CONTRACT_ADDRESS,
@@ -80,10 +101,17 @@ export default function RegisterButton() {
       });
 
       console.log("📤 Transaction sent:", hash);
+      console.log("🔍 View on explorer:");
+      if (chainId === 44787) {
+        console.log(`https://alfajores.celoscan.io/tx/${hash}`);
+      } else if (chainId === 11142220) {
+        console.log(`https://celo-sepolia.blockscout.com/tx/${hash}`);
+      }
 
       // Wait for confirmation
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
       console.log("✅ Transaction confirmed:", receipt);
+      console.log("📊 Status:", receipt.status);
 
       if (receipt.status === "success") {
         alert("✅ Successfully registered on blockchain! You can now redeem tokens.");
@@ -91,11 +119,26 @@ export default function RegisterButton() {
         // Refresh the page to update UI
         window.location.reload();
       } else {
-        alert("❌ Transaction failed. Please try again.");
+        console.error("❌ Transaction status:", receipt.status);
+        alert("❌ Transaction failed. Please check console for details.");
       }
     } catch (error: any) {
       console.error("❌ Registration failed:", error);
-      alert(`Registration failed: ${error.message || "Unknown error"}`);
+      console.error("❌ Error details:", error.message);
+      console.error("❌ Error code:", error.code);
+      
+      let errorMsg = "Registration failed. ";
+      if (error.message?.includes("User denied") || error.message?.includes("rejected")) {
+        errorMsg += "Transaction was rejected.";
+      } else if (error.message?.includes("insufficient funds")) {
+        errorMsg += "Insufficient CELO for gas fees. Get test CELO from the faucet.";
+      } else if (error.message?.includes("already registered")) {
+        errorMsg += "You may already be registered.";
+      } else {
+        errorMsg += error.message || "Unknown error. Check console for details.";
+      }
+      
+      alert(errorMsg);
     } finally {
       setIsRegistering(false);
     }
