@@ -2,6 +2,18 @@
 const nextConfig = {
   images: {
     domains: ['localhost'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
+  },
+  // Vercel serverless function timeout
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '5mb',
+    },
   },
   webpack: (config) => {
     // Externalize and ignore problematic dependencies

@@ -178,6 +178,8 @@ export async function POST(request: NextRequest) {
           success: false,
           error: oracleData.error,
           details: oracleData.details,
+          registrationNeeded: false,
+          message: '',
         };
         // Check if user needs to register
         if (oracleData.error?.includes('not registered')) {
